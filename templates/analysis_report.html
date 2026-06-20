@@ -1,0 +1,614 @@
+{% extends 'base.html' %}
+{% block title %}Analysis Report - AiCodeRev{% endblock %}
+{% block nav_analysis %}active{% endblock %}
+
+{% block content %}
+<div class="page-container" style="max-width: 1200px; margin: 0 auto; position: relative;">
+
+    {% if status == 'no_repo' %}
+    <div style="margin-bottom: 2rem;">
+        <h2 style="margin: 0; font-size: 2rem; font-weight: 800;">Analysis Reports</h2>
+        <p style="color: var(--text-muted); margin-top: 0.5rem;">Select a repository to view or run its maintainability analysis.</p>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem;">
+        {% for r in repos %}
+        <div class="card" style="background: var(--surface-color); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 1.5rem; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+                <h3 style="margin: 0 0 0.5rem 0; font-size: 1.2rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="color: var(--text-muted);">📂</span> {{ r.repo_name }}
+                </h3>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem;">
+                    Created: {{ r.created_at|date:"M d, Y" }}
+                </p>
+            </div>
+            <a href="{% url 'analysis-report' %}?repo={{ r.repository_id }}" class="btn-primary" style="width: 100%; display: block; text-align: center; text-decoration: none;">View / Run Analysis</a>
+        </div>
+        {% empty %}
+        <div class="empty-state" style="grid-column: 1 / -1;">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">🔍</div>
+            <h3 style="margin-bottom: 0.5rem; font-size: 1.25rem;">No Repositories Found</h3>
+            <p style="color: var(--text-muted); margin-bottom: 1.5rem;">You need to upload a repository before running an analysis.</p>
+            <a href="{% url 'repositories' %}" class="btn-primary" style="text-decoration: none;">Go to Repositories</a>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% elif status == 'no_report' %}
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <div style="color: var(--text-muted); font-size: 0.9rem;">
+            Repository &rarr; <span style="font-weight: 500; color: var(--primary);">{{ repo.repo_name }}</span> &rarr;
+            Analysis Report
+        </div>
+    </div>
+
+    <div class="empty-state">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">⚡</div>
+        <h3 style="margin-bottom: 0.5rem; font-size: 1.25rem;">Ready for Analysis</h3>
+        <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Run an AI scan on {{ repo.repo_name }} to detect
+            maintainability issues.</p>
+        <button id="runAnalysisBtn" onclick="runAnalysis('{{ repo.repository_id }}')" class="btn-primary large"
+            style="font-size: 1rem; padding: 0.8rem 2rem;">Run Full Analysis</button>
+        <div id="analysisLoader"
+            style="display: none; margin-top: 1.5rem; color: var(--primary); font-weight: 600; text-align: center;">
+            <div class="spinner"></div><br>
+            <div class="empty-state-desc">Analyzing codebase</div>
+        </div>
+    </div>
+
+    {% elif status == 'success' %}
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <div style="color: var(--text-muted); font-size: 0.9rem;">
+            Repository &rarr; <span style="font-weight: 500; color: var(--primary);">{{ repo.repo_name }}</span> &rarr;
+            Analysis Report
+        </div>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem;">
+        <div>
+            <h2 style="margin: 0; font-size: 2rem; font-weight: 800; display: flex; align-items: center; gap: 0.75rem;">
+                Analysis Report
+                <span class="badge success" style="font-size: 0.8rem;">Complete</span>
+            </h2>
+            <div style="font-size: 0.95rem; color: var(--text-muted); margin-top: 0.5rem;">
+                Model: <strong>{{ report.ai_model }}</strong> &middot; Last Analyzed: {{ report.analysis_date|date:"M d, Y H:i" }}
+            </div>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: flex-end;">
+            <button id="runAnalysisBtn" onclick="runAnalysis('{{ repo.repository_id }}')" class="btn-outline">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    style="display: inline; margin-right: 0.25rem; vertical-align: middle;">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <polyline points="1 20 1 14 7 14"></polyline>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                </svg>
+                Re-Analyze
+            </button>
+            <div id="analysisLoader"
+                style="display: none; margin-top: 0.5rem; color: var(--primary); font-weight: 600; font-size: 0.85rem;">
+                Analyzing codebase
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="metrics-grid">
+        <div class="metric-card">
+            <div class="metric-label">Total Smells</div>
+            <div class="metric-value">{{ total_count }}</div>
+        </div>
+        <div class="metric-card border-error">
+            <div class="metric-label">Major Issues</div>
+            <div class="metric-value">{{ major_count }}</div>
+        </div>
+        <div class="metric-card border-warning">
+            <div class="metric-label">Moderate Issues</div>
+            <div class="metric-value">{{ moderate_count }}</div>
+        </div>
+        <div class="metric-card border-info">
+            <div class="metric-label">Minor Issues</div>
+            <div class="metric-value">{{ minor_count }}</div>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="card table-container"
+        style="border: 1px solid var(--border-subtle); border-radius: 12px; background: var(--surface-color);">
+        <div class="table-header">
+            <h3 style="margin: 0; font-size: 1.15rem;">Detected Code Smells</h3>
+            <div style="display: flex; gap: 0.5rem;">
+                <select class="form-select" style="padding: 0.5rem; font-size: 0.9rem;">
+                    <option>All Severities</option>
+                    <option>Major</option>
+                    <option>Moderate</option>
+                    <option>Minor</option>
+                </select>
+            </div>
+        </div>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Severity</th>
+                    <th>Type</th>
+                    <th>File</th>
+                    <th>Lines</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for smell in smells %}
+                <tr>
+                    <td>
+                        <span
+                            class="badge {% if smell.severity_level == 'Major' %}danger{% elif smell.severity_level == 'Moderate' %}warning{% else %}info{% endif %}">
+                            {{ smell.severity_level }}
+                        </span>
+                    </td>
+                    <td style="font-weight: 600;">
+                        {{ smell.smell_type }}
+                        {% if smell.is_resolved %}
+                        <span class="badge success" style="margin-left: 0.5rem; font-size: 0.65rem; padding: 0.15rem 0.4rem;">Resolved</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-family: monospace; color: var(--text-muted);">{{ smell.file_path }}</td>
+                    <td style="font-family: monospace; color: var(--text-muted);">{{ smell.line_range }}</td>
+                    <td style="text-align: right;">
+                        <button class="btn-outline-sm"
+                            onclick="openDrawer('{{ smell.smell_id }}', '{{ smell.smell_type|escapejs }}', '{{ smell.severity_level|escapejs }}', '{{ smell.file_path|escapejs }}', '{{ smell.description|escapejs }}', '{{ smell.snippet|escapejs }}')">Details</button>
+                        {% if not smell.is_resolved %}
+                        <a href="{% url 'refactoring' %}?smell={{ smell.smell_id }}" class="btn-primary-sm">Refactor</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Context Drawer -->
+<div id="detailDrawerOverlay" class="drawer-overlay" onclick="closeDrawer()"></div>
+<div id="detailDrawer" class="drawer">
+    <div class="drawer-header">
+        <div>
+            <h3 style="margin: 0; margin-bottom: 0.25rem;">Smell Details</h3>
+            <div id="drawerFilePath" style="font-family: monospace; color: var(--text-muted); font-size: 0.85rem;">
+            </div>
+        </div>
+        <button onclick="closeDrawer()" class="btn-icon">&times;</button>
+    </div>
+
+    <div class="drawer-body">
+        <div class="drawer-field">
+            <label>Severity</label>
+            <div><span id="drawerSeverityBadge" class="badge"></span></div>
+        </div>
+        <div class="drawer-field">
+            <label>Type</label>
+            <div id="drawerType" style="font-weight: 600;"></div>
+        </div>
+        <div class="drawer-field" style="align-items: flex-start;">
+            <label>Description</label>
+            <div id="drawerDescription" style="line-height: 1.6; color: var(--text-color);"></div>
+        </div>
+
+        <div style="margin-top: 1.5rem;">
+            <label
+                style="color: var(--text-muted); font-size: 0.9rem; display: block; margin-bottom: 0.5rem; font-weight: 500;">Snippet
+                Context</label>
+            <div class="code-snippet-box">
+                <span style="color: #6B7280; font-style: italic;">// Simulated context from repository </span><br>
+                <div id="drawerCodeContext" style="margin-top: 0.5rem;">def
+                    analyze_complex_logic():<br>&nbsp;&nbsp;&nbsp;&nbsp;pass</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="drawer-footer">
+        <button onclick="requestRefactoring()" class="btn-primary" style="width: 100%; justify-content: center;">Send to
+            AI for Refactoring</button>
+        <button onclick="closeDrawer()" class="btn-outline"
+            style="width: 100%; justify-content: center; border-color: transparent;">Dismiss</button>
+    </div>
+</div>
+
+<form id="csrfForm" style="display: none;">{% csrf_token %}</form>
+
+<style>
+    .empty-state {
+        text-align: center;
+        padding: 6rem 2rem;
+        background: var(--surface-color);
+        border: 1px dashed var(--border-subtle);
+        border-radius: 12px;
+        margin-top: 2rem;
+    }
+
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .metric-card {
+        background: var(--surface-color);
+        padding: 1.5rem;
+        border-radius: 12px;
+        border: 1px solid var(--border-subtle);
+        border-left: 4px solid var(--primary);
+    }
+
+    .metric-card.border-error {
+        border-left-color: var(--error);
+    }
+
+    .metric-card.border-warning {
+        border-left-color: var(--warning);
+    }
+
+    .metric-card.border-info {
+        border-left-color: #3B82F6;
+    }
+
+    .metric-label {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+    }
+
+    .metric-value {
+        font-size: 2rem;
+        font-weight: 800;
+    }
+
+    .badge {
+        padding: 0.25rem 0.6rem;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        display: inline-block;
+    }
+
+    .badge.success {
+        background: rgba(16, 185, 129, 0.15);
+        color: var(--success);
+    }
+
+    .badge.danger {
+        background: rgba(239, 68, 68, 0.15);
+        color: var(--error);
+    }
+
+    .badge.warning {
+        background: rgba(245, 158, 11, 0.15);
+        color: var(--warning);
+    }
+
+    .badge.info {
+        background: rgba(59, 130, 246, 0.15);
+        color: #3B82F6;
+    }
+
+    .table-container {
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .table-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--border-subtle);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+    }
+
+    .data-table th {
+        padding: 1rem 1.5rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        border-bottom: 1px solid var(--border-subtle);
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .data-table td {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--border-subtle);
+        vertical-align: middle;
+    }
+
+    .data-table tbody tr:hover {
+        background: rgba(255, 255, 255, 0.02);
+    }
+
+    .data-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .btn-outline {
+        padding: 0.6rem 1rem;
+        background: transparent;
+        color: var(--text-color);
+        border: 1px solid var(--border-subtle);
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .btn-outline:hover {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: var(--text-muted);
+    }
+
+    .btn-outline-sm {
+        padding: 0.4rem 0.8rem;
+        background: transparent;
+        color: var(--text-color);
+        border: 1px solid var(--border-subtle);
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        margin-right: 0.5rem;
+        transition: background 0.2s;
+    }
+
+    .btn-outline-sm:hover {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .btn-primary-sm {
+        padding: 0.4rem 0.8rem;
+        background: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        text-decoration: none;
+        font-weight: 500;
+        transition: background 0.2s;
+    }
+
+    .btn-primary-sm:hover {
+        background: var(--primary-hover);
+        color: white !important;
+    }
+
+    .form-select {
+        padding: 0.6rem;
+        border-radius: 6px;
+        border: 1px solid var(--border-subtle);
+        background: var(--bg-color);
+        color: var(--text-color);
+        font-family: inherit;
+    }
+
+    /* Drawer Styles */
+    .drawer-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(2px);
+        z-index: 1000;
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+
+    .drawer-overlay.show {
+        display: block;
+        opacity: 1;
+    }
+
+    .drawer {
+        position: fixed;
+        top: 0;
+        right: -500px;
+        width: 100%;
+        max-width: 480px;
+        height: 100vh;
+        background: var(--surface-color);
+        box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+        z-index: 1001;
+        transition: right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        display: flex;
+        flex-direction: column;
+        border-left: 1px solid var(--border-subtle);
+    }
+
+    .drawer.show {
+        right: 0;
+    }
+
+    .drawer-header {
+        padding: 1.5rem;
+        border-bottom: 1px solid var(--border-subtle);
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    .drawer-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1.5rem;
+    }
+
+    .drawer-footer {
+        padding: 1.5rem;
+        border-top: 1px solid var(--border-subtle);
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        background: var(--surface-color);
+    }
+
+    .drawer-field {
+        display: grid;
+        grid-template-columns: 100px 1fr;
+        align-items: center;
+        margin-bottom: 1.25rem;
+    }
+
+    .drawer-field label {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    .btn-icon {
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        font-size: 1.5rem;
+        cursor: pointer;
+        width: 32px;
+        height: 32px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+    }
+
+    .btn-icon:hover {
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-color);
+    }
+
+    .code-snippet-box {
+        background: var(--bg-color);
+        border: 1px solid var(--border-subtle);
+        border-radius: 8px;
+        padding: 1.25rem;
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 0.85rem;
+        overflow-x: auto;
+        color: #E9ECF5;
+    }
+
+    .spinner {
+        border: 3px solid rgba(167, 139, 250, 0.3);
+        border-radius: 50%;
+        border-top: 3px solid var(--primary);
+        width: 24px;
+        height: 24px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto;
+        display: inline-block;
+    }
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+</style>
+
+<script>
+    async function runAnalysis(repoId) {
+        document.getElementById('runAnalysisBtn').disabled = true;
+        document.getElementById('runAnalysisBtn').style.opacity = '0.5';
+        document.getElementById('analysisLoader').style.display = 'block';
+
+        const formData = new FormData();
+        formData.append('repo_id', repoId);
+        formData.append('csrfmiddlewaretoken', document.querySelector('#csrfForm [name=csrfmiddlewaretoken]').value);
+
+        try {
+            const resp = await fetch('{% url "analysis-report" %}', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await resp.json();
+            if (data.success) {
+                window.location.href = `{% url "analysis-report" %}?repo=${repoId}`;
+            } else {
+                alert(data.error || 'Analysis Failed');
+                resetAnalysisBtn();
+            }
+        } catch {
+            alert('Analysis failed due to network error.');
+            resetAnalysisBtn();
+        }
+    }
+
+    function resetAnalysisBtn() {
+        const btn = document.getElementById('runAnalysisBtn');
+        if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+        const loader = document.getElementById('analysisLoader');
+        if (loader) loader.style.display = 'none';
+    }
+
+    let activeSmellId = null;
+
+    function openDrawer(id, type, severity, path, description, snippet) {
+        activeSmellId = id;
+        document.getElementById('drawerFilePath').textContent = path;
+        document.getElementById('drawerType').textContent = type;
+        document.getElementById('drawerDescription').textContent = description;
+        if (snippet) {
+            document.getElementById('drawerCodeContext').textContent = snippet;
+        }
+
+        const badge = document.getElementById('drawerSeverityBadge');
+        badge.textContent = severity;
+        badge.className = 'badge';
+        if (severity === 'Major') badge.classList.add('danger');
+        else if (severity === 'Moderate') badge.classList.add('warning');
+        else badge.classList.add('info');
+
+        const overlay = document.getElementById('detailDrawerOverlay');
+        const drawer = document.getElementById('detailDrawer');
+
+        overlay.style.display = 'block';
+        setTimeout(() => {
+            overlay.classList.add('show');
+            drawer.classList.add('show');
+        }, 10);
+    }
+
+    function closeDrawer() {
+        const overlay = document.getElementById('detailDrawerOverlay');
+        const drawer = document.getElementById('detailDrawer');
+
+        drawer.classList.remove('show');
+        overlay.classList.remove('show');
+
+        setTimeout(() => {
+            overlay.style.display = 'none';
+        }, 300);
+    }
+
+    function requestRefactoring() {
+        if (activeSmellId) {
+            window.location.href = `{% url "refactoring" %}?smell=${activeSmellId}`;
+        }
+    }
+</script>
+{% endblock %}

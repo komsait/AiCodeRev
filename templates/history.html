@@ -1,0 +1,526 @@
+{% extends 'base.html' %}
+{% block title %}Commit History - AiCodeRev{% endblock %}
+{% block nav_history %}active{% endblock %}
+
+{% block content %}
+<div class="page-container"
+    style="max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; height: calc(100vh - 8rem);">
+
+    {% if status == 'no_repo' %}
+    <div class="empty-state">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">🕒</div>
+        <h3 style="margin-bottom: 0.5rem; color: var(--text-color);">Select a Repository</h3>
+        <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Choose a workspace to view its commit history and
+            diffs.</p>
+        <div style="display: flex; gap: 1rem; justify-content: center;">
+            {% for r in repos %}
+            <a href="?repo={{ r.repository_id }}" class="btn-outline">{{ r.repo_name }}</a>
+            {% empty %}
+            <a href="{% url 'repositories' %}" class="btn-primary" style="text-decoration: none;">Initialize
+                Repository</a>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1.5rem;">
+        <div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                <a href="{% url 'repositories' %}"
+                    style="color: var(--text-muted); text-decoration: none;">Repository</a>
+                <span style="color: var(--text-muted);">/</span>
+                <span style="font-weight: 600; color: var(--primary);">{{ repo.repo_name }}</span>
+            </div>
+            <h1 style="font-size: 2rem; font-weight: 800;">Commit History</h1>
+        </div>
+        <a href="{% url 'commits' %}?repo={{ repo.repository_id }}" class="btn-outline">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                style="margin-right: 0.5rem;">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+            Write Commit
+        </a>
+    </div>
+
+    <div class="history-layout">
+
+        <!-- Timeline / Commit List -->
+        <div class="timeline-pane">
+            <div class="pane-header">
+                <h3 style="margin: 0; font-size: 1.1rem;">Commits</h3>
+            </div>
+            <div class="timeline-body">
+                {% for c in commits %}
+                <a href="?repo={{ repo.repository_id }}&hash={{ c.hash }}"
+                    class="commit-item {% if selected_hash == c.hash %}active{% endif %}">
+                    <div class="commit-indicator"></div>
+                    <div class="commit-content">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                            <span class="commit-hash">{{ c.hash|slice:":7" }}</span>
+                            <span class="commit-date">{{ c.date|date:"M d, g:i A" }}</span>
+                        </div>
+                        <div class="commit-msg">{{ c.message }}</div>
+                        <div class="commit-author">by <span style="font-weight: 500; color: var(--text-color);">{{ c.author }}</span></div>
+                    </div>
+                </a>
+                {% empty %}
+                <div class="empty-text">No commits in this repository.</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Diff Viewer -->
+        <div class="diff-pane" style="overflow: hidden; display: flex; flex-direction: column;">
+            {% if selected_hash %}
+            <div class="pane-header dark" style="display: flex; justify-content: space-between; align-items: center; background: var(--surface-color); border-bottom: 1px solid var(--border-subtle); flex-shrink: 0;">
+                <div>
+                    Reviewing Diff for <span style="font-family: monospace; color: var(--primary);">{{ selected_hash|slice:":7" }}</span>
+                </div>
+            </div>
+            
+            {% if diff_files %}
+            <!-- File Tabs selector -->
+            <div class="file-tabs" style="display: flex; gap: 0.5rem; overflow-x: auto; padding: 0.75rem 1.5rem; background: rgba(0, 0, 0, 0.1); border-bottom: 1px solid var(--border-subtle); flex-shrink: 0;">
+                {% for file in diff_files %}
+                <button class="file-tab {% if forloop.first %}active{% endif %}" data-index="{{ forloop.counter0 }}" style="padding: 0.5rem 1rem; border-radius: 6px; border: 1px solid var(--border-subtle); background: var(--surface-color); color: var(--text-color); font-family: monospace; font-size: 0.85rem; cursor: pointer; white-space: nowrap; transition: all 0.2s;">
+                    {{ file.filename }}
+                </button>
+                {% endfor %}
+            </div>
+
+            <div class="diff-viewer-wrapper" style="flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg-color);">
+                {% for file in diff_files %}
+                <div id="file-diff-{{ forloop.counter0 }}" class="file-diff-content" {% if forloop.first %}style="flex: 1; display: flex; flex-direction: column; overflow: hidden; height: 100%;"{% else %}style="flex: 1; display: none; flex-direction: column; overflow: hidden; height: 100%;"{% endif %}>
+                    <div class="file-diff-card" style="flex: 1; display: flex; flex-direction: column; overflow: hidden; height: 100%; border: none; border-radius: 0;">
+                        <div class="file-header" style="background: rgba(255, 255, 255, 0.02); padding: 0.75rem 1.25rem; border-bottom: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+                            <span style="font-family: monospace; font-weight: 600; color: var(--text-color); font-size: 0.9rem;">{{ file.filename }}</span>
+                            <span class="badge {% if file.status == 'new' %}success{% elif file.status == 'deleted' %}danger{% else %}info{% endif %}" style="font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 4px;">
+                                {{ file.status|upper }}
+                            </span>
+                        </div>
+                        
+                        <div class="diff-viewer-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0; flex: 1; overflow: hidden; height: 100%; background: transparent;">
+                            <!-- Left Pane (Before) -->
+                            <div class="code-pane-column" style="display: flex; flex-direction: column; overflow: hidden; border-right: 1px solid var(--border-subtle); height: 100%;">
+                                <div class="pane-header original" style="padding: 0.5rem 1rem; font-size: 0.8rem; background: rgba(239, 68, 68, 0.05); color: var(--error); border-bottom: 1px solid var(--border-subtle); flex-shrink: 0;">
+                                    Before
+                                </div>
+                                <div class="diff-code-container history-code-container" style="flex: 1; overflow: auto; background: var(--bg-color); height: 100%;">
+                                    {% if file.status == 'new' %}
+                                        <div style="padding: 2rem; text-align: center; color: var(--text-muted); font-style: italic;">New file</div>
+                                    {% else %}
+                                        {% for line in file.old_lines %}
+                                        <div class="diff-line line-normal">
+                                            <span class="line-number">{{ forloop.counter }}</span>
+                                            <span class="line-content">{{ line|escape }}</span>
+                                        </div>
+                                        {% endfor %}
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <!-- Right Pane (After) -->
+                            <div class="code-pane-column" style="display: flex; flex-direction: column; overflow: hidden; height: 100%;">
+                                <div class="pane-header suggested" style="padding: 0.5rem 1rem; font-size: 0.8rem; background: rgba(16, 185, 129, 0.05); color: var(--success); border-bottom: 1px solid var(--border-subtle); flex-shrink: 0;">
+                                    After
+                                </div>
+                                <div class="diff-code-container history-code-container" style="flex: 1; overflow: auto; background: var(--bg-color); height: 100%;">
+                                    {% if file.status == 'deleted' %}
+                                        <div style="padding: 2rem; text-align: center; color: var(--text-muted); font-style: italic;">Deleted file</div>
+                                    {% else %}
+                                        {% for line in file.new_lines %}
+                                        <div class="diff-line line-normal">
+                                            <span class="line-number">{{ forloop.counter }}</span>
+                                            <span class="line-content">{{ line|escape }}</span>
+                                        </div>
+                                        {% endfor %}
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="diff-content" style="flex: 1; overflow: auto; display: flex; align-items: center; justify-content: center;">
+                <span style="color: var(--text-muted); font-style: italic;">No files changed in this commit.</span>
+            </div>
+            {% endif %}
+            
+            {% else %}
+            <div
+                style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-muted); min-height: 400px;">
+                <span style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;">👀</span>
+                Select a commit from the timeline to view its diff.
+            </div>
+            {% endif %}
+        </div>
+
+    </div>
+    {% endif %}
+
+</div>
+
+<style>
+    .empty-state {
+        text-align: center;
+        padding: 6rem 2rem;
+        background: var(--surface-color);
+        border: 1px dashed var(--border-subtle);
+        border-radius: 12px;
+        margin-top: 2rem;
+    }
+
+    .history-layout {
+        display: flex;
+        gap: 1.5rem;
+        flex: 1;
+        overflow: hidden;
+        min-height: 500px;
+    }
+
+    .timeline-pane {
+        width: 420px;
+        background: var(--surface-color);
+        border-radius: 12px;
+        border: 1px solid var(--border-subtle);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .diff-pane {
+        flex: 1;
+        background: var(--surface-color);
+        border-radius: 12px;
+        border: 1px solid var(--border-subtle);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .pane-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--border-subtle);
+        background: var(--surface-color);
+        z-index: 10;
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+
+    .pane-header.dark {
+        background: rgba(0, 0, 0, 0.3);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .timeline-body {
+        flex: 1;
+        overflow-y: auto;
+        position: relative;
+    }
+
+    .timeline-body::before {
+        content: '';
+        position: absolute;
+        left: 24px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: var(--border-subtle);
+        z-index: 0;
+    }
+
+    .commit-item {
+        display: flex;
+        padding: 1.5rem 1.5rem 1.5rem 1rem;
+        text-decoration: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        position: relative;
+        z-index: 1;
+        transition: background 0.2s;
+    }
+
+    .commit-item:hover {
+        background: rgba(255, 255, 255, 0.02);
+    }
+
+    .commit-item.active {
+        background: rgba(167, 139, 250, 0.08);
+    }
+
+    .commit-item.active::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 4px;
+        background: var(--primary);
+    }
+
+    .commit-indicator {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--surface-color);
+        border: 2px solid var(--border-subtle);
+        margin-top: 4px;
+        margin-right: 1.5rem;
+        z-index: 2;
+        box-shadow: 0 0 0 4px var(--bg-color);
+        transition: all 0.2s;
+    }
+
+    .commit-item.active .commit-indicator {
+        background: var(--primary);
+        border-color: var(--primary);
+        box-shadow: 0 0 0 4px rgba(167, 139, 250, 0.2);
+    }
+
+    .commit-content {
+        flex: 1;
+        overflow: hidden;
+    }
+
+    .commit-hash {
+        font-family: 'Consolas', 'Monaco', monospace;
+        color: var(--primary);
+        font-weight: bold;
+        font-size: 0.95rem;
+    }
+
+    .commit-date {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+    }
+
+    .commit-msg {
+        color: var(--text-color);
+        font-weight: 500;
+        font-size: 0.95rem;
+        margin-bottom: 0.5rem;
+        line-height: 1.5;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .commit-author {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+    }
+
+    .diff-content {
+        flex: 1;
+        padding: 1.5rem;
+        overflow: auto;
+        background: var(--bg-color);
+    }
+
+    .diff-content pre {
+        margin: 0;
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 0.9rem;
+        line-height: 1.6;
+        color: #E9ECF5;
+    }
+
+    .empty-text {
+        padding: 3rem 2rem;
+        text-align: center;
+        color: var(--text-muted);
+        font-style: italic;
+        position: relative;
+        z-index: 2;
+        background: var(--surface-color);
+    }
+
+    .btn-outline {
+        padding: 0.6rem 1rem;
+        background: transparent;
+        color: var(--text-color);
+        border: 1px solid var(--border-subtle);
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+        font-size: 0.9rem;
+        text-decoration: none;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .btn-outline:hover {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: var(--text-muted);
+    }
+
+    .btn-primary {
+        padding: 0.8rem 1.5rem;
+        background: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.2s;
+        display: inline-block;
+    }
+
+    .btn-primary:hover {
+        background: var(--primary-hover);
+    }
+
+    .diff-code-container {
+        flex: 1;
+        overflow: auto;
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 0.85rem;
+        line-height: 1.5;
+        background: var(--bg-color);
+        padding: 1rem 0;
+    }
+
+    .diff-line {
+        display: flex;
+        white-space: pre;
+        min-height: 1.5rem;
+        min-width: max-content;
+        width: 100%;
+    }
+
+    .line-number {
+        width: 3.5rem;
+        text-align: right;
+        padding-right: 1rem;
+        color: var(--text-muted);
+        user-select: none;
+        border-right: 1px solid var(--border-subtle);
+        margin-right: 0.5rem;
+        flex-shrink: 0;
+    }
+
+    .line-content {
+        padding-left: 0.5rem;
+        flex: 1;
+    }
+
+    .line-normal {
+        color: var(--text-color);
+    }
+
+    .line-deleted {
+        background-color: rgba(239, 68, 68, 0.15);
+        color: #FCA5A5;
+    }
+
+    .line-added {
+        background-color: rgba(16, 185, 129, 0.15);
+        color: #6EE7B7;
+    }
+
+    .line-placeholder {
+        background-color: rgba(255, 255, 255, 0.01);
+        opacity: 0.25;
+    }
+
+    .badge.success {
+        background: rgba(16, 185, 129, 0.15);
+        color: var(--success);
+    }
+
+    .badge.danger {
+        background: rgba(239, 68, 68, 0.15);
+        color: var(--error);
+    }
+
+    .file-tab.active {
+        background: var(--primary) !important;
+        color: white !important;
+        border-color: var(--primary) !important;
+        box-shadow: 0 2px 8px rgba(167, 139, 250, 0.25);
+    }
+
+    .file-tab:hover:not(.active) {
+        background: rgba(255, 255, 255, 0.05) !important;
+        border-color: var(--text-muted) !important;
+    }
+</style>
+
+<!-- Highlight.js for diff coloring -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+    function initHistoryDiff() {
+        document.querySelectorAll('.diff-content code').forEach((el) => {
+            hljs.highlightElement(el);
+        });
+
+        // Tab selection logic
+        const tabs = document.querySelectorAll('.file-tab');
+        const contents = document.querySelectorAll('.file-diff-content');
+
+        tabs.forEach((tab) => {
+            tab.addEventListener('click', function() {
+                const index = this.getAttribute('data-index');
+
+                // Hide all contents
+                contents.forEach(content => {
+                    content.style.display = 'none';
+                });
+
+                // Show target content as flex container to enable child height stretch
+                const target = document.getElementById(`file-diff-${index}`);
+                if (target) {
+                    target.style.display = 'flex';
+                }
+
+                // Update active state on tabs
+                tabs.forEach((t) => {
+                    if (t === tab) {
+                        t.classList.add('active');
+                    } else {
+                        t.classList.remove('active');
+                    }
+                });
+            });
+        });
+
+        // Synchronize scrolling of diff panes inside each card
+        document.querySelectorAll('.file-diff-card').forEach(card => {
+            const containers = card.querySelectorAll('.history-code-container');
+            containers.forEach(container => {
+                container.addEventListener('scroll', function() {
+                    containers.forEach(other => {
+                        if (other !== container) {
+                            other.scrollTop = container.scrollTop;
+                            other.scrollLeft = container.scrollLeft;
+                        }
+                    });
+                });
+            });
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initHistoryDiff);
+    } else {
+        initHistoryDiff();
+    }
+
+    (function() {
+        const theme = document.documentElement.getAttribute('data-theme');
+        if (theme === 'light') {
+            const lightCSS = document.createElement('link');
+            lightCSS.rel = 'stylesheet';
+            lightCSS.href = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css';
+            document.head.appendChild(lightCSS);
+        }
+    })();
+</script>
+{% endblock %}

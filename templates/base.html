@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}AiCodeRev{% endblock %}</title>
+    <script>
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+        :root {
+            --bg-color: #070707;
+            --surface-color: #1A1A1D;
+            --text-color: #E9ECF5;
+            --text-muted: #9CA3AF;
+            --primary: #A78BFA;
+            --primary-hover: #8B5CF6;
+            --accent: #8B5CF6;
+            --border-subtle: #333333;
+            --error: #EF4444;
+            --warning: #F59E0B;
+            --success: #10B981;
+            --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+
+        [data-theme="light"] {
+            --bg-color: #FFFFFF;
+            --surface-color: #F3F4F6;
+            --text-color: #111827;
+            --text-muted: #6B7280;
+            --primary: #7C3AED;
+            --primary-hover: #6D28D9;
+            --accent: #6D28D9;
+            --border-subtle: #E5E7EB;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .app-header {
+            height: 56px;
+            background-color: var(--surface-color);
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            z-index: 10;
+        }
+
+        .app-body {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .icon-rail {
+            width: 72px;
+            background-color: var(--surface-color);
+            border-right: 1px solid var(--border-subtle);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 16px;
+            z-index: 5;
+            position: relative;
+        }
+
+        .icon-item {
+            width: 56px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text-color);
+            border-left: 2px solid transparent;
+            position: relative;
+            transition: all 0.2s ease;
+        }
+
+        .icon-item.active {
+            border-left-color: var(--primary);
+            color: var(--primary);
+            background: linear-gradient(90deg, rgba(167, 139, 250, 0.1) 0%, transparent 100%);
+        }
+
+        .icon-item:hover {
+            background-color: rgba(167, 139, 250, 0.05);
+        }
+
+        .icon-item::after {
+            content: attr(aria-label);
+            position: absolute;
+            left: 72px;
+            background: var(--surface-color);
+            color: var(--text-color);
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: 1px solid var(--border-subtle);
+            font-size: 0.85rem;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s 0.3s;
+            z-index: 100;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .icon-item:hover::after {
+            opacity: 1;
+        }
+
+        .main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 32px;
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .brand {
+            font-weight: 800;
+            font-size: 1.25rem;
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .search-bar-container {
+            width: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .search-bar {
+            width: 100%;
+            max-width: 600px;
+            padding: 8px 12px 8px 36px;
+            border-radius: 6px;
+            border: 1px solid var(--border-subtle);
+            background: var(--bg-color) url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%239CA3AF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>') no-repeat 10px center;
+            color: var(--text-color);
+            transition: border-color 0.2s;
+            font-family: inherit;
+        }
+
+        .search-bar:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .header-right {
+            width: 30%;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .repo-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            border: 1px solid var(--border-subtle);
+            font-size: 0.9rem;
+            user-select: none;
+        }
+
+        .repo-selector:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .ai-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+        }
+
+        .ai-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--success);
+        }
+
+        .user-menu {
+            position: relative;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            user-select: none;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .user-dropdown {
+            display: none;
+            position: absolute;
+            top: 40px;
+            right: 0;
+            width: 220px;
+            background: var(--surface-color);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            z-index: 100;
+        }
+
+        .user-dropdown.show {
+            display: block;
+        }
+
+        .user-info {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .user-info-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .user-info-email {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .dropdown-item {
+            display: block;
+            padding: 10px 16px;
+            color: var(--text-color);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: background 0.2s;
+        }
+
+        .dropdown-item:hover {
+            background: rgba(167, 139, 250, 0.08);
+        }
+
+        .dropdown-item.danger {
+            color: var(--error);
+        }
+
+        .dropdown-item.danger:hover {
+            background: rgba(239, 68, 68, 0.08);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: #fff !important;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+        }
+    </style>
+</head>
+
+<body>
+    {% if user.is_authenticated %}
+    <header class="app-header">
+        <div style="width: 20%; display: flex; align-items: center; gap: 8px;">
+            <a href="{% url 'dashboard' %}" class="brand">AiCodeRev</a>
+            <span
+                style="font-size: 0.75rem; color: var(--text-muted); border: 1px solid var(--border-subtle); padding: 2px 6px; border-radius: 12px;">v1.0</span>
+        </div>
+
+        <div class="search-bar-container">
+            <input type="text" class="search-bar" placeholder="Search... (Ctrl+K)">
+        </div>
+
+        <div class="header-right">
+            <div class="ai-status">
+                <div class="ai-status-dot"></div>
+                <span style="color: var(--text-muted)">AI Online</span>
+            </div>
+
+            <div style="position: relative; cursor: pointer;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="var(--text-color)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                </svg>
+            </div>
+            <div style="border-left: 1px solid var(--border-subtle); height: 24px;"></div>
+
+            <div class="user-menu" onclick="document.getElementById('user-dropdown').classList.toggle('show')">
+                <div class="user-avatar">{{ user.username|make_list|first|upper }}</div>
+                <div class="repo-meta-item">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.912 5.813a2 2 0 001.275 1.275L21 12l-5.813 1.912a2 2 0 00-1.275 1.275L12 21l-1.912-5.813a2 2 0 00-1.275-1.275L3 12l5.813-1.912a2 2 0 001.275-1.275L12 3z"/></svg>
+                    <span>{{ active_ai_provider|default:"AI Online" }}</span>
+                </div>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+
+                <div id="user-dropdown" class="user-dropdown">
+                    <div class="user-info">
+                        <div class="user-info-name">{{ user.username }}</div>
+                        <div class="user-info-email">{{ user.email }}</div>
+                    </div>
+                    <div style="padding: 8px 0;">
+                        <a href="{% url 'settings' %}" class="dropdown-item">Profile Settings</a>
+                        <a href="{% url 'logout' %}" class="dropdown-item danger">Sign Out</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="app-body">
+        <nav class="icon-rail">
+            <a href="{% url 'dashboard' %}" class="icon-item {% block nav_dashboard %}{% endblock %}"
+                aria-label="Dashboard">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
+            </a>
+            <a href="{% url 'repositories' %}" class="icon-item {% block nav_repos %}{% endblock %}"
+                aria-label="Repositories">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                </svg>
+            </a>
+            <a href="{% url 'upload' %}" class="icon-item {% block nav_upload %}{% endblock %}"
+                aria-label="Upload Code">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+            </a>
+            <a href="{% url 'analysis-report' %}" class="icon-item {% block nav_analysis %}{% endblock %}"
+                aria-label="Run Analysis">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                </svg>
+            </a>
+            <a href="{% url 'refactoring' %}" class="icon-item {% block nav_refactor %}{% endblock %}"
+                aria-label="Refactoring">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="16 18 22 12 16 6"></polyline>
+                    <polyline points="8 6 2 12 8 18"></polyline>
+                </svg>
+            </a>
+            <a href="{% url 'commits' %}" class="icon-item {% block nav_commits %}{% endblock %}" aria-label="Commits">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <line x1="3" y1="12" x2="9" y2="12"></line>
+                    <line x1="15" y1="12" x2="21" y2="12"></line>
+                </svg>
+            </a>
+            <a href="{% url 'history' %}" class="icon-item {% block nav_history %}{% endblock %}" aria-label="History">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="6" y1="3" x2="6" y2="15"></line>
+                    <circle cx="18" cy="6" r="3"></circle>
+                    <circle cx="6" cy="18" r="3"></circle>
+                    <path d="M18 9a9 9 0 0 1-9 9"></path>
+                </svg>
+            </a>
+            
+            {% if user.is_staff %}
+            <a href="{% url 'admin-dashboard' %}" class="icon-item {% block nav_admin %}{% endblock %}" aria-label="Admin Dashboard">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            </a>
+            {% endif %}
+
+            <a href="{% url 'export' %}" class="icon-item {% block nav_export %}{% endblock %}" aria-label="Export">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+            </a>
+            <div style="flex: 1;"></div>
+            <a href="{% url 'settings' %}" class="icon-item {% block nav_settings %}{% endblock %}"
+                aria-label="Settings" style="margin-bottom: 8px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path
+                        d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+                    </path>
+                </svg>
+            </a>
+
+        </nav>
+        <main class="main-content">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+    {% else %}
+    <main style="min-height: 100vh; overflow-y: auto;">
+        {% block public_content %}{% endblock %}
+    </main>
+    {% endif %}
+
+    <script>
+        document.addEventListener('click', function (event) {
+            const userMenu = document.querySelector('.user-menu');
+            if (userMenu && !userMenu.contains(event.target)) {
+                const userDropdown = document.getElementById('user-dropdown');
+                if (userDropdown) userDropdown.classList.remove('show');
+            }
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,656 @@
+{% extends 'base.html' %}
+{% block title %}Repositories - AiCodeRev{% endblock %}
+{% block nav_repos %}active{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem;">
+    <div>
+        <h1 style="font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem;">Repositories</h1>
+        <p style="color: var(--text-muted);">Manage your codebases and initialize new tracking.</p>
+    </div>
+    <button onclick="openModal()" class="btn-primary" style="display: flex; align-items: center; gap: 0.5rem;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        Initialize Repository
+    </button>
+</div>
+
+<!-- Search and Filter -->
+<div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
+    <div style="flex: 1; position: relative;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+            style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%);">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="text" placeholder="Search repositories..."
+            style="width: 100%; padding: 0.8rem 1rem 0.8rem 2.8rem; border-radius: 8px; border: 1px solid var(--border-subtle); background: var(--surface-color); color: var(--text-color); font-family: inherit; font-size: 0.95rem;">
+    </div>
+    <button
+        style="display: flex; align-items: center; gap: 0.5rem; padding: 0.8rem 1.2rem; background: var(--surface-color); border: 1px solid var(--border-subtle); color: var(--text-color); border-radius: 8px; cursor: pointer; font-family: inherit; font-weight: 500;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+        </svg>
+        Filter
+    </button>
+</div>
+
+<!-- Repository Grid -->
+<div class="repo-grid">
+    {% for repo in repos %}
+    <div class="repo-card" id="repo-card-{{ repo.repository_id }}">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem;">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div
+                    style="width: 48px; height: 48px; border-radius: 12px; background: rgba(167, 139, 250, 0.1); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+                    📁
+                </div>
+                <div>
+                    <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600;" title="{{ repo.repo_name }}">{{ repo.repo_name }}</h3>
+                    <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">ID: {{ repo.repository_id|stringformat:"s"|slice:":8" }}...</div>
+                </div>
+            </div>
+            <div class="repo-menu-wrapper">
+                <button class="repo-menu-btn" onclick="toggleRepoMenu(event, '{{ repo.repository_id }}')">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="1"></circle>
+                        <circle cx="12" cy="5" r="1"></circle>
+                        <circle cx="12" cy="19" r="1"></circle>
+                    </svg>
+                </button>
+                <div class="repo-dropdown" id="repo-dropdown-{{ repo.repository_id }}">
+                    <a href="{% url 'repository-view' %}?id={{ repo.repository_id }}" class="repo-dropdown-item">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                        View Details
+                    </a>
+                    <a href="{% url 'upload' %}?repo={{ repo.repository_id }}" class="repo-dropdown-item">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                        Upload Code
+                    </a>
+                    <div class="repo-dropdown-divider"></div>
+                    <button class="repo-dropdown-item danger" onclick="confirmDeleteRepo('{{ repo.repository_id }}', '{{ repo.repo_name }}')">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                        Delete Repository
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div
+            style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; font-size: 0.9rem;">
+            <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                <span style="color: var(--text-muted);">Created</span>
+                <span style="font-weight: 500;">{{ repo.created_at|date:"M d, Y" }}</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                <span style="color: var(--text-muted);">Type</span>
+                <span style="font-weight: 500; text-transform: capitalize;">{{ repo.upload_type }}</span>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem;">
+            <a href="{% url 'repository-view' %}?id={{ repo.repository_id }}" class="btn-outline" style="flex: 1;">View
+                Details</a>
+            <a href="{% url 'upload' %}?repo={{ repo.repository_id }}" class="btn-outline icon-btn" title="Upload Code">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+            </a>
+        </div>
+    </div>
+    {% empty %}
+    <div class="empty-state">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">📁</div>
+        <h3 style="margin-bottom: 0.5rem; font-size: 1.25rem;">No repositories yet</h3>
+        <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Get started by initializing your first repository
+            workspace.</p>
+        <button onclick="openModal()" class="btn-primary">Initialize Repository</button>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Initialize Repository Modal -->
+<div id="initModal" class="modal-backdrop">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3 style="margin: 0; font-size: 1.25rem;">Initialize Repository</h3>
+            <button onclick="closeModal()" class="modal-close">&times;</button>
+        </div>
+
+        <div id="notificationBanner" class="modal-banner"></div>
+
+        <div class="modal-body">
+            <form id="initForm" onsubmit="submitInitForm(event)">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label>Repository Name</label>
+                    <input type="text" id="repo_name" name="repo_name" required placeholder="e.g. backend-api"
+                        class="form-input">
+                </div>
+
+                <div class="form-checkbox">
+                    <input type="checkbox" id="upload_after" name="upload_after">
+                    <label for="upload_after">Upload code immediately after initialization</label>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" onclick="closeModal()" id="btnCancel" class="btn-outline">Cancel</button>
+                    <button type="submit" id="btnSubmit" class="btn-primary">Initialize</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 420px;">
+        <div class="modal-header" style="border-bottom-color: rgba(239, 68, 68, 0.2);">
+            <h3 style="margin: 0; font-size: 1.25rem; color: var(--error);">Delete Repository</h3>
+            <button onclick="closeDeleteModal()" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div style="text-align: center; margin-bottom: 1.5rem;">
+                <div style="width: 56px; height: 56px; border-radius: 50%; background: rgba(239, 68, 68, 0.1); display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--error)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                </div>
+                <p style="color: var(--text-color); font-size: 0.95rem; margin-bottom: 0.5rem;">Are you sure you want to delete <strong id="deleteRepoName"></strong>?</p>
+                <p style="color: var(--text-muted); font-size: 0.85rem;">This will permanently remove all code files, analysis reports, commits, and refactoring suggestions. This action cannot be undone.</p>
+            </div>
+            <div class="modal-actions">
+                <button type="button" onclick="closeDeleteModal()" id="btnDeleteCancel" class="btn-outline">Cancel</button>
+                <button type="button" onclick="executeDelete()" id="btnDeleteConfirm" class="btn-danger">Delete Repository</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .repo-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .repo-card {
+        background: var(--surface-color);
+        border: 1px solid var(--border-subtle);
+        border-radius: 12px;
+        padding: 1.5rem;
+        transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .repo-card:hover {
+        transform: translateY(-4px);
+        border-color: var(--primary);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-outline {
+        padding: 0.6rem 1rem;
+        background: transparent;
+        color: var(--text-color);
+        border: 1px solid var(--border-subtle);
+        border-radius: 6px;
+        cursor: pointer;
+        text-align: center;
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+    }
+
+    .btn-outline:hover {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: var(--text-muted);
+    }
+
+    .icon-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 42px;
+        padding: 0;
+    }
+
+    .empty-state {
+        grid-column: 1 / -1;
+        text-align: center;
+        padding: 6rem 2rem;
+        background: var(--surface-color);
+        border: 1px dashed var(--border-subtle);
+        border-radius: 12px;
+    }
+
+    /* Repo Menu Dropdown */
+    .repo-menu-wrapper {
+        position: relative;
+    }
+
+    .repo-menu-btn {
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        cursor: pointer;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        transition: all 0.2s;
+    }
+
+    .repo-menu-btn:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--text-color);
+    }
+
+    .repo-dropdown {
+        display: none;
+        position: absolute;
+        top: 100%;
+        right: 0;
+        min-width: 180px;
+        background: var(--surface-color);
+        border: 1px solid var(--border-subtle);
+        border-radius: 8px;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+        z-index: 50;
+        padding: 4px 0;
+        overflow: hidden;
+    }
+
+    .repo-dropdown.show {
+        display: block;
+        animation: dropdownFadeIn 0.15s ease-out;
+    }
+
+    @keyframes dropdownFadeIn {
+        from { opacity: 0; transform: translateY(-4px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .repo-dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 8px 14px;
+        color: var(--text-color);
+        text-decoration: none;
+        font-size: 0.875rem;
+        cursor: pointer;
+        transition: background 0.15s;
+        border: none;
+        background: none;
+        width: 100%;
+        font-family: inherit;
+    }
+
+    .repo-dropdown-item:hover {
+        background: rgba(167, 139, 250, 0.08);
+    }
+
+    .repo-dropdown-item.danger {
+        color: var(--error);
+    }
+
+    .repo-dropdown-item.danger:hover {
+        background: rgba(239, 68, 68, 0.08);
+    }
+
+    .repo-dropdown-divider {
+        height: 1px;
+        background: var(--border-subtle);
+        margin: 4px 0;
+    }
+
+    /* Delete button */
+    .btn-danger {
+        background: var(--error);
+        color: #fff !important;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: background 0.2s, opacity 0.2s;
+        text-decoration: none;
+        display: inline-block;
+        text-align: center;
+        font-family: inherit;
+        font-size: 0.9rem;
+    }
+
+    .btn-danger:hover {
+        background: #DC2626;
+    }
+
+    /* Modal Styles */
+    .modal-backdrop {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(4px);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+
+    .modal-backdrop.show {
+        display: flex;
+        opacity: 1;
+    }
+
+    .modal-card {
+        background: var(--surface-color);
+        width: 100%;
+        max-width: 480px;
+        border-radius: 12px;
+        border: 1px solid var(--border-subtle);
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        transform: scale(0.95);
+        transition: transform 0.2s;
+    }
+
+    .modal-backdrop.show .modal-card {
+        transform: scale(1);
+    }
+
+    .modal-header {
+        padding: 1.5rem;
+        border-bottom: 1px solid var(--border-subtle);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        font-size: 1.5rem;
+        cursor: pointer;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+    }
+
+    .modal-close:hover {
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-color);
+    }
+
+    .modal-banner {
+        display: none;
+        padding: 1rem 1.5rem;
+        font-weight: 500;
+        font-size: 0.9rem;
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    .form-group input {
+        padding: 0.8rem;
+        border-radius: 6px;
+        border: 1px solid var(--border-subtle);
+        background: var(--bg-color);
+        color: var(--text-color);
+        font-family: inherit;
+    }
+
+    .form-group input:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.2);
+    }
+
+    .form-checkbox {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+        margin-bottom: 2rem;
+    }
+
+    .form-checkbox label {
+        font-size: 0.9rem;
+        color: var(--text-color);
+        cursor: pointer;
+    }
+
+    .form-checkbox input {
+        accent-color: var(--primary);
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+    }
+
+    .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+    }
+</style>
+
+<script>
+    // ── Repo context menu dropdown ──
+    function toggleRepoMenu(event, repoId) {
+        event.stopPropagation();
+        // Close all other open dropdowns
+        document.querySelectorAll('.repo-dropdown.show').forEach(function(d) {
+            if (d.id !== 'repo-dropdown-' + repoId) d.classList.remove('show');
+        });
+        document.getElementById('repo-dropdown-' + repoId).classList.toggle('show');
+    }
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('.repo-menu-wrapper')) {
+            document.querySelectorAll('.repo-dropdown.show').forEach(function(d) { d.classList.remove('show'); });
+        }
+    });
+
+    // ── Delete repository ──
+    var deleteTargetId = null;
+    var deleteTargetName = '';
+
+    function confirmDeleteRepo(repoId, repoName) {
+        // Close any open dropdown
+        document.querySelectorAll('.repo-dropdown.show').forEach(function(d) { d.classList.remove('show'); });
+        deleteTargetId = repoId;
+        deleteTargetName = repoName;
+        document.getElementById('deleteRepoName').textContent = repoName;
+        var backdrop = document.getElementById('deleteModal');
+        backdrop.style.display = 'flex';
+        setTimeout(function() { backdrop.classList.add('show'); }, 10);
+    }
+
+    function closeDeleteModal() {
+        var backdrop = document.getElementById('deleteModal');
+        backdrop.classList.remove('show');
+        setTimeout(function() {
+            backdrop.style.display = 'none';
+            deleteTargetId = null;
+            deleteTargetName = '';
+            // Reset button state
+            var btn = document.getElementById('btnDeleteConfirm');
+            btn.disabled = false;
+            btn.textContent = 'Delete Repository';
+            btn.style.opacity = '1';
+            document.getElementById('btnDeleteCancel').disabled = false;
+        }, 200);
+    }
+
+    async function executeDelete() {
+        if (!deleteTargetId) return;
+        var confirmBtn = document.getElementById('btnDeleteConfirm');
+        var cancelBtn = document.getElementById('btnDeleteCancel');
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'Deleting...';
+        confirmBtn.style.opacity = '0.7';
+        cancelBtn.disabled = true;
+
+        try {
+            var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            var response = await fetch('/repository/delete/' + deleteTargetId + '/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/json',
+                }
+            });
+            var data = await response.json();
+            if (response.ok) {
+                // Remove the card with animation
+                var card = document.getElementById('repo-card-' + deleteTargetId);
+                if (card) {
+                    card.style.transition = 'opacity 0.3s, transform 0.3s';
+                    card.style.opacity = '0';
+                    card.style.transform = 'scale(0.95)';
+                    setTimeout(function() { card.remove(); }, 300);
+                }
+                closeDeleteModal();
+                // Check if grid is now empty
+                setTimeout(function() {
+                    var grid = document.querySelector('.repo-grid');
+                    if (grid && grid.children.length === 0) {
+                        grid.innerHTML = '<div class="empty-state">' +
+                            '<div style="font-size: 3rem; margin-bottom: 1rem;">📁</div>' +
+                            '<h3 style="margin-bottom: 0.5rem; font-size: 1.25rem;">No repositories yet</h3>' +
+                            '<p style="color: var(--text-muted); margin-bottom: 1.5rem;">Get started by initializing your first repository workspace.</p>' +
+                            '<button onclick="openModal()" class="btn-primary">Initialize Repository</button>' +
+                            '</div>';
+                    }
+                }, 350);
+            } else {
+                alert(data.error || 'Failed to delete repository.');
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = 'Delete Repository';
+                confirmBtn.style.opacity = '1';
+                cancelBtn.disabled = false;
+            }
+        } catch (err) {
+            alert('Network error. Please try again.');
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = 'Delete Repository';
+            confirmBtn.style.opacity = '1';
+            cancelBtn.disabled = false;
+        }
+    }
+
+    // ── Init modal ──
+    function openModal() {
+        var backdrop = document.getElementById('initModal');
+        backdrop.style.display = 'flex';
+        setTimeout(function() { backdrop.classList.add('show'); }, 10);
+        document.getElementById('repo_name').focus();
+        hideBanner();
+    }
+
+    function closeModal() {
+        if (document.getElementById('btnSubmit').disabled) return;
+        var backdrop = document.getElementById('initModal');
+        backdrop.classList.remove('show');
+        setTimeout(function() {
+            backdrop.style.display = 'none';
+            document.getElementById('initForm').reset();
+        }, 200);
+    }
+
+    function showBanner(message, type) {
+        var banner = document.getElementById('notificationBanner');
+        banner.style.display = 'block';
+        banner.textContent = message;
+        banner.style.backgroundColor = type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)';
+        banner.style.color = type === 'success' ? 'var(--success)' : 'var(--error)';
+        banner.style.borderBottom = '1px solid ' + (type === 'success' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)');
+    }
+
+    function hideBanner() {
+        document.getElementById('notificationBanner').style.display = 'none';
+    }
+
+    async function submitInitForm(e) {
+        e.preventDefault();
+        var form = e.target;
+        var formData = new FormData(form);
+        var submitBtn = document.getElementById('btnSubmit');
+        var cancelBtn = document.getElementById('btnCancel');
+        var repoNameInput = document.getElementById('repo_name');
+        var uploadCheckbox = document.getElementById('upload_after');
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Initializing...';
+        submitBtn.style.opacity = '0.7';
+        cancelBtn.disabled = true;
+        repoNameInput.disabled = true;
+        uploadCheckbox.disabled = true;
+        hideBanner();
+
+        try {
+            var response = await fetch('{% url "repositories" %}', {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-CSRFToken': formData.get('csrfmiddlewaretoken') }
+            });
+            var data = await response.json();
+
+            if (response.ok) {
+                showBanner('✓ Repository initialized successfully!', 'success');
+                setTimeout(function() {
+                    window.location.href = data.redirect || '{% url "repositories" %}';
+                }, 800);
+            } else {
+                showBanner(data.error || 'Initialization failed', 'error');
+                revertLoadingState();
+            }
+        } catch (err) {
+            showBanner('Initialization failed due to network error', 'error');
+            revertLoadingState();
+        }
+
+        function revertLoadingState() {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Initialize';
+            submitBtn.style.opacity = '1';
+            cancelBtn.disabled = false;
+            repoNameInput.disabled = false;
+            uploadCheckbox.disabled = false;
+        }
+    }
+</script>
+{% endblock %}

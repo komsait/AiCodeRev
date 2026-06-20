@@ -1,0 +1,578 @@
+{% extends 'base.html' %}
+{% block title %}{{ repo.repo_name|default:"Repository" }} - AiCodeRev{% endblock %}
+
+{% block content %}
+{% if not repo %}
+<div class="empty-state">
+    <div style="font-size: 3rem; margin-bottom: 1rem;">❌</div>
+    <h3 style="margin-bottom: 0.5rem; font-size: 1.25rem;">Repository Not Found</h3>
+    <p style="color: var(--text-muted); margin-bottom: 1.5rem;">The requested repository could not be found or you don't
+        have access.</p>
+    <a href="{% url 'repositories' %}" class="btn-primary" style="text-decoration: none;">Return to Repositories</a>
+</div>
+{% else %}
+<div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1.5rem;">
+    <div>
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+            <a href="{% url 'repositories' %}" style="color: var(--text-muted); text-decoration: none;">Repositories</a>
+            <span style="color: var(--text-muted);">/</span>
+            <span style="font-weight: 600; color: var(--primary);">{{ repo.repo_name }}</span>
+        </div>
+        <h1 style="font-size: 2rem; font-weight: 800;">Repository Browser</h1>
+    </div>
+    <div style="display: flex; gap: 1rem;">
+        <a href="{% url 'upload' %}?repo={{ repo.repository_id }}" class="btn-outline">Upload Files</a>
+        
+        {% if has_analysis %}
+            <a href="{% url 'analysis-report' %}?repo={{ repo.repository_id }}" class="btn-outline" style="border-color: var(--primary); color: var(--primary);">View Analysis</a>
+        {% else %}
+            <button class="btn-outline" onclick="alert('No analysis has been made for this repository yet. Click \\'Run Analysis\\' to start.')" style="opacity: 0.7;">View Analysis</button>
+        {% endif %}
+        
+        <button id="runAnalysisBtnView" onclick="runAnalysis('{{ repo.repository_id }}')" class="btn-primary" style="display: flex; align-items: center; justify-content: center;">Run Analysis</button>
+    </div>
+</div>
+
+<div class="repo-browser">
+    <!-- File Tree Sidebar -->
+    <div class="file-tree">
+        <h3
+            style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 1rem; padding: 0 0.5rem;">
+            Files Explorer</h3>
+
+        <div class="tree-node directory open" style="cursor: default;">
+            <span class="tree-icon">📂</span> root
+        </div>
+        <div class="tree-children" id="file-tree-container">
+            <!-- Dynamic Tree Injected via JS -->
+        </div>
+    </div>
+
+    <!-- Code Viewer -->
+    <div class="code-viewer">
+        <div class="code-header">
+            <div class="code-header-filepath">
+                <span id="current-file-icon" style="color: var(--text-muted); flex-shrink: 0;">📄</span>
+                <span id="current-file-name" class="filepath-label">Select a file to view</span>
+            </div>
+            <div class="code-header-actions">
+                <span id="line-count-badge" class="line-count-badge" style="display: none;">0 lines</span>
+                <button class="btn-icon" id="copyBtn" title="Copy raw contents" onclick="copyToClipboard()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div class="code-scroll-container" id="code-scroll-container">
+            <div class="code-content-wrapper" id="code-content-wrapper">
+                <!-- Placeholder shown before any file is selected -->
+                <div class="code-placeholder" id="code-placeholder">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none"
+                        stroke="var(--text-muted)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+                        style="opacity: 0.4; margin-bottom: 1rem;">
+                        <polyline points="16 18 22 12 16 6"></polyline>
+                        <polyline points="8 6 2 12 8 18"></polyline>
+                    </svg>
+                    <p style="color: var(--text-muted); font-size: 0.95rem;">Choose a file from the explorer to view its contents</p>
+                </div>
+                <!-- Line numbers gutter -->
+                <div class="line-numbers-gutter" id="line-numbers-gutter"></div>
+                <!-- Code block -->
+                <pre class="code-pre" id="code-pre" style="display: none;"><code id="code-content-block" class="hljs"></code></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Highlight.js – GitHub Dark theme for dark mode compatibility -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+{{ file_tree|json_script:"file-tree-data" }}
+<script>
+    // ─── Extension → Highlight.js language mapping ─────────────────────
+    const EXT_LANG_MAP = {
+        '.py':   'python',
+        '.java': 'java',
+        '.js':   'javascript',
+        '.ts':   'typescript',
+        '.php':  'php',
+        '.rb':   'ruby',
+        '.go':   'go',
+        '.c':    'c',
+        '.cs':   'csharp',
+        '.cpp':  'cpp',
+        '.h':    'c',
+        '.html': 'xml',
+        '.css':  'css',
+        '.json': 'json',
+        '.md':   'markdown',
+        '.xml':  'xml',
+        '.yml':  'yaml',
+        '.yaml': 'yaml',
+        '.sh':   'bash',
+        '.sql':  'sql',
+        '.rs':   'rust',
+        '.kt':   'kotlin',
+        '.swift':'swift',
+    };
+
+    function getLangFromPath(filePath) {
+        const dot = filePath.lastIndexOf('.');
+        if (dot === -1) return '';
+        return EXT_LANG_MAP[filePath.substring(dot).toLowerCase()] || '';
+    }
+
+    // ─── File tree rendering ───────────────────────────────────────────
+    document.addEventListener("DOMContentLoaded", function() {
+        const fileTreeData = JSON.parse(document.getElementById('file-tree-data').textContent);
+        const container = document.getElementById('file-tree-container');
+
+        function renderTree(nodes, parentEl) {
+            nodes.forEach(node => {
+                const nodeDiv = document.createElement('div');
+                nodeDiv.className = 'tree-node ' + node.type;
+                nodeDiv.innerHTML = `<span class="tree-icon">${node.type === 'directory' ? '📁' : '📄'}</span> ${node.name}`;
+
+                if (node.type === 'file') {
+                    nodeDiv.onclick = (e) => {
+                        e.stopPropagation();
+                        document.querySelectorAll('.tree-node.file').forEach(el => el.classList.remove('active'));
+                        nodeDiv.classList.add('active');
+                        loadFileContent(node.path, node.name);
+                    };
+                    parentEl.appendChild(nodeDiv);
+                } else if (node.type === 'directory') {
+                    nodeDiv.onclick = (e) => {
+                        e.stopPropagation();
+                        const childrenDiv = nodeDiv.nextElementSibling;
+                        if (childrenDiv && childrenDiv.classList.contains('tree-children')) {
+                            childrenDiv.style.display = childrenDiv.style.display === 'none' ? 'block' : 'none';
+                            nodeDiv.querySelector('.tree-icon').textContent = childrenDiv.style.display === 'none' ? '📁' : '📂';
+                        }
+                    };
+                    parentEl.appendChild(nodeDiv);
+
+                    if (node.children && node.children.length > 0) {
+                        const childrenContainer = document.createElement('div');
+                        childrenContainer.className = 'tree-children';
+                        renderTree(node.children, childrenContainer);
+                        parentEl.appendChild(childrenContainer);
+                    }
+                }
+            });
+        }
+
+        if (fileTreeData && fileTreeData.length > 0) {
+            renderTree(fileTreeData, container);
+        } else {
+            container.innerHTML = '<div style="padding: 1rem; color: #888; font-size: 0.9rem;">Repository is empty.</div>';
+        }
+    });
+
+    // ─── Raw content cache (for copy-to-clipboard) ─────────────────────
+    let _rawContent = '';
+
+    // ─── Load file & render with line numbers + syntax highlighting ────
+    function loadFileContent(filePath, fileName) {
+        const fileLabel = document.getElementById('current-file-name');
+        const codeBlock = document.getElementById('code-content-block');
+        const gutter    = document.getElementById('line-numbers-gutter');
+        const codePre   = document.getElementById('code-pre');
+        const placeholder = document.getElementById('code-placeholder');
+        const badge     = document.getElementById('line-count-badge');
+
+        fileLabel.textContent = filePath;
+        fileLabel.title = filePath;  // full path on hover
+
+        // Show loading state
+        placeholder.style.display = 'none';
+        codePre.style.display = 'block';
+        gutter.style.display = 'block';
+        codeBlock.textContent = 'Loading…';
+        codeBlock.className = 'hljs';
+        gutter.innerHTML = '<span>1</span>';
+        badge.style.display = 'none';
+
+        const urlId = new URLSearchParams(window.location.search).get('id');
+
+        fetch(`{% url 'repository-view' %}?id=${urlId}&file_path=${encodeURIComponent(filePath)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    _rawContent = '';
+                    gutter.innerHTML = '';
+                    gutter.style.display = 'none';
+                    codeBlock.textContent = 'Error: ' + data.error;
+                    codeBlock.className = 'hljs';
+                    badge.style.display = 'none';
+                    return;
+                }
+
+                _rawContent = data.content;
+                const lines = data.content.split('\n');
+                const lineCount = lines.length;
+
+                // Render line numbers
+                const gutterHtml = [];
+                for (let i = 1; i <= lineCount; i++) {
+                    gutterHtml.push(`<span>${i}</span>`);
+                }
+                gutter.innerHTML = gutterHtml.join('');
+
+                // Set language class and content
+                const lang = getLangFromPath(filePath);
+                codeBlock.textContent = data.content;
+                codeBlock.className = lang ? `language-${lang} hljs` : 'hljs';
+
+                // Apply syntax highlighting
+                hljs.highlightElement(codeBlock);
+
+                // Show line count badge
+                badge.textContent = `${lineCount} lines`;
+                badge.style.display = 'inline-block';
+
+                // Reset scroll position
+                document.getElementById('code-scroll-container').scrollTop = 0;
+            })
+            .catch(err => {
+                _rawContent = '';
+                gutter.innerHTML = '';
+                gutter.style.display = 'none';
+                codeBlock.textContent = 'Connection error.';
+                codeBlock.className = 'hljs';
+                badge.style.display = 'none';
+            });
+    }
+
+    // ─── Copy to clipboard ─────────────────────────────────────────────
+    function copyToClipboard() {
+        if (!_rawContent) return;
+        const btn = document.getElementById('copyBtn');
+        navigator.clipboard.writeText(_rawContent).then(() => {
+            btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline></svg>`;
+            setTimeout(() => {
+                btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+            }, 1500);
+        });
+    }
+</script>
+{% endif %}
+
+<style>
+    .btn-outline {
+        padding: 0.6rem 1rem;
+        background: transparent;
+        color: var(--text-color);
+        border: 1px solid var(--border-subtle);
+        border-radius: 6px;
+        cursor: pointer;
+        text-align: center;
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+    }
+
+    .btn-outline:hover {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: var(--text-muted);
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 6rem 2rem;
+        background: var(--surface-color);
+        border: 1px dashed var(--border-subtle);
+        border-radius: 12px;
+        margin-top: 2rem;
+    }
+
+    /* ── Repo browser layout ─────────────────────────────────────── */
+    .repo-browser {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        gap: 0;
+        background: var(--surface-color);
+        border: 1px solid var(--border-subtle);
+        border-radius: 12px;
+        overflow: hidden;
+        height: calc(100vh - 200px);
+        min-height: 480px;
+    }
+
+    /* ── File tree sidebar ────────────────────────────────────────── */
+    .file-tree {
+        border-right: 1px solid var(--border-subtle);
+        padding: 1.5rem 1rem;
+        background: rgba(0, 0, 0, 0.1);
+        overflow-y: auto;
+    }
+
+    .tree-node {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.4rem 0.5rem;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        color: var(--text-color);
+        user-select: none;
+        transition: background 0.2s;
+    }
+
+    .tree-node:hover {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .tree-node.active {
+        background: rgba(167, 139, 250, 0.15);
+        color: var(--primary);
+        font-weight: 500;
+    }
+
+    .tree-icon {
+        font-size: 1.1rem;
+    }
+
+    .tree-children {
+        padding-left: 1.5rem;
+    }
+
+    /* ── Code viewer ─────────────────────────────────────────────── */
+    .code-viewer {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;          /* prevent grid blow-out */
+        overflow: hidden;
+    }
+
+    /* ── Code header / tab bar ───────────────────────────────────── */
+    .code-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--border-subtle);
+        background: var(--bg-color);
+        gap: 0.75rem;
+        flex-shrink: 0;
+    }
+
+    .code-header-filepath {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-width: 0;          /* allow shrinking */
+        flex: 1;
+    }
+
+    .filepath-label {
+        font-weight: 500;
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 0.88rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-width: 0;
+        direction: rtl;        /* truncate from the LEFT so the filename is always visible */
+        text-align: left;
+    }
+
+    .code-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-shrink: 0;
+    }
+
+    .line-count-badge {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        background: rgba(255,255,255,0.06);
+        padding: 0.2rem 0.6rem;
+        border-radius: 10px;
+        font-family: 'Consolas', 'Monaco', monospace;
+        white-space: nowrap;
+    }
+
+    .btn-icon {
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        cursor: pointer;
+        padding: 0.35rem;
+        border-radius: 4px;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+    }
+
+    .btn-icon:hover {
+        color: var(--text-color);
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    /* ── Scrollable code container ───────────────────────────────── */
+    .code-scroll-container {
+        flex: 1;
+        overflow: auto;
+        max-height: calc(100vh - 280px);
+        background: #0d1117;
+    }
+
+    .code-content-wrapper {
+        display: flex;
+        min-height: 100%;
+    }
+
+    /* ── Placeholder state ───────────────────────────────────────── */
+    .code-placeholder {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        min-height: 300px;
+        text-align: center;
+        padding: 2rem;
+    }
+
+    /* ── Line numbers gutter ─────────────────────────────────────── */
+    .line-numbers-gutter {
+        display: none;
+        flex-direction: column;
+        align-items: flex-end;
+        padding: 1rem 0;
+        background: rgba(0, 0, 0, 0.25);
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
+        user-select: none;
+        position: sticky;
+        left: 0;
+        z-index: 2;
+        flex-shrink: 0;
+    }
+
+    .line-numbers-gutter span {
+        display: block;
+        padding: 0 0.75rem 0 1rem;
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 0.82rem;
+        line-height: 1.45;
+        color: rgba(255, 255, 255, 0.22);
+        min-width: 3rem;
+        text-align: right;
+    }
+
+    .line-numbers-gutter span:hover {
+        color: rgba(255, 255, 255, 0.5);
+    }
+
+    /* ── Code block ──────────────────────────────────────────────── */
+    .code-pre {
+        margin: 0;
+        padding: 1rem 1.25rem;
+        flex: 1;
+        min-width: 0;
+        overflow-x: visible;   /* horizontal scroll handled by parent */
+    }
+
+    .code-pre code {
+        font-family: 'Consolas', 'Monaco', 'Cascadia Code', monospace;
+        font-size: 0.88rem;
+        line-height: 1.45;
+        tab-size: 4;
+        background: transparent !important;
+        padding: 0 !important;
+    }
+
+    /* ── Override highlight.js background to blend with our layout ── */
+    .hljs {
+        background: transparent !important;
+    }
+
+    /* ── Sync gutter height with code when fewer lines ────────────── */
+    .code-content-wrapper .line-numbers-gutter,
+    .code-content-wrapper .code-pre {
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+    }
+
+    /* Light theme adjustments */
+    [data-theme="light"] .code-scroll-container {
+        background: #f6f8fa;
+    }
+
+    [data-theme="light"] .line-numbers-gutter {
+        background: rgba(0, 0, 0, 0.04);
+        border-right-color: rgba(0, 0, 0, 0.08);
+    }
+
+    [data-theme="light"] .line-numbers-gutter span {
+        color: rgba(0, 0, 0, 0.25);
+    }
+
+    [data-theme="light"] .line-numbers-gutter span:hover {
+        color: rgba(0, 0, 0, 0.5);
+    }
+</style>
+
+<!-- Light-theme syntax style override -->
+<script>
+    (function() {
+        const theme = document.documentElement.getAttribute('data-theme');
+        if (theme === 'light') {
+            const lightCSS = document.createElement('link');
+            lightCSS.rel = 'stylesheet';
+            lightCSS.href = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css';
+            document.head.appendChild(lightCSS);
+        }
+    })();
+</script>
+
+<script>
+    async function runAnalysis(repoId) {
+        const btn = document.getElementById('runAnalysisBtnView');
+        btn.disabled = true;
+        btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;margin-right:8px;border-top-color:#fff;"></div> Analyzing...';
+
+        const formData = new FormData();
+        formData.append('repo_id', repoId);
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+        try {
+            const resp = await fetch('{% url "analysis-report" %}', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await resp.json();
+            if (data.success) {
+                window.location.href = `{% url "analysis-report" %}?repo=${repoId}`;
+            } else {
+                alert(data.error || 'Analysis Failed');
+                resetAnalysisBtnView();
+            }
+        } catch {
+            alert('Analysis failed due to network error.');
+            resetAnalysisBtnView();
+        }
+    }
+
+    function resetAnalysisBtnView() {
+        const btn = document.getElementById('runAnalysisBtnView');
+        if (btn) { 
+            btn.disabled = false; 
+            btn.innerHTML = 'Run Analysis'; 
+        }
+    }
+</script>
+{% endblock %}

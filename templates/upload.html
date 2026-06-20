@@ -1,0 +1,382 @@
+{% extends 'base.html' %}
+{% block title %}Upload Code - AiCodeRev{% endblock %}
+{% block nav_upload %}active{% endblock %}
+
+{% block content %}
+<div class="page-container" style="max-width: 800px; margin: 0 auto;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem;">
+        <div>
+            <h1 style="font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem;">Upload Source Code</h1>
+            <p style="color: var(--text-muted);">Zip archives will be automatically extracted.</p>
+        </div>
+    </div>
+
+    <div class="upload-card">
+        <form id="uploadForm" onsubmit="submitUpload(event)"
+            style="display: flex; flex-direction: column; gap: 1.5rem;">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label>Select Repository Workspace</label>
+                <div class="custom-select-wrapper">
+                    <select name="repo_id" id="repo_id" required class="form-select">
+                        <option value="" disabled {% if not selected_repo_id %}selected{% endif %}>-- Choose a
+                            repository --</option>
+                        {% for repo in repos %}
+                        <option value="{{ repo.repository_id }}" {% if selected_repo_id == repo.repository_id|stringformat:"s" %}selected{% endif %}>{{ repo.repo_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% if not repos %}
+                <small class="error-msg">You have no repositories. Please initialize one first.</small>
+                {% endif %}
+            </div>
+
+            <!-- Drag & Drop Zone -->
+            <div id="dropZone" class="drop-zone">
+                <div class="drop-icon">📁</div>
+                <h3>Drag & Drop files here</h3>
+                <p>ZIP archives are fully supported and will extract automatically.</p>
+                <input type="file" id="fileInput" name="files" multiple style="display: none;">
+                <button type="button" onclick="document.getElementById('fileInput').click()" class="btn-outline"
+                    style="margin-top: 1rem;">Select Files</button>
+                <div id="selectedFilesInfo" class="selected-info"></div>
+            </div>
+
+            <!-- Notifications & Progress -->
+            <div id="notificationBanner" class="notification-banner"></div>
+
+            <div id="progressContainer" class="progress-container">
+                <div
+                    style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem; font-weight: 500;">
+                    <span>Uploading...</span>
+                    <span id="progressText">0%</span>
+                </div>
+                <div class="progress-track">
+                    <div id="progressBar" class="progress-bar"></div>
+                </div>
+            </div>
+
+            <div id="fileTreePreview" class="tree-preview">
+                <h4>Upload Successful. Extracted Files:</h4>
+                <ul id="treeList"></ul>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+                <button type="submit" id="btnUpload" class="btn-primary" disabled style="opacity: 0.5;">Upload
+                    Files</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .upload-card {
+        background: var(--surface-color);
+        padding: 2.5rem;
+        border-radius: 12px;
+        border: 1px solid var(--border-subtle);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .form-group label {
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+
+    .form-select {
+        width: 100%;
+        padding: 0.8rem;
+        border-radius: 6px;
+        border: 1px solid var(--border-subtle);
+        background: var(--bg-color);
+        color: var(--text-color);
+        font-family: inherit;
+        font-size: 0.95rem;
+    }
+
+    .form-select:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.2);
+    }
+
+    .error-msg {
+        color: var(--error);
+        font-size: 0.85rem;
+        margin-top: 0.25rem;
+    }
+
+    .drop-zone {
+        border: 2px dashed var(--border-subtle);
+        border-radius: 12px;
+        padding: 4rem 2rem;
+        text-align: center;
+        background: var(--bg-color);
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .drop-zone.dragover {
+        border-color: var(--primary);
+        background: rgba(167, 139, 250, 0.05);
+    }
+
+    .drop-icon {
+        font-size: 3.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .drop-zone h3 {
+        margin-bottom: 0.5rem;
+        font-size: 1.25rem;
+    }
+
+    .drop-zone p {
+        color: var(--text-muted);
+        font-size: 0.95rem;
+        margin-bottom: 1rem;
+    }
+
+    .selected-info {
+        margin-top: 1.5rem;
+        color: var(--primary);
+        font-weight: 600;
+        font-size: 0.95rem;
+        display: none;
+    }
+
+    .btn-outline {
+        padding: 0.6rem 1.2rem;
+        background: var(--surface-color);
+        color: var(--text-color);
+        border: 1px solid var(--border-subtle);
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+
+    .btn-outline:hover {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: var(--text-muted);
+    }
+
+    .notification-banner {
+        display: none;
+        padding: 1rem;
+        border-radius: 6px;
+        font-weight: 500;
+        font-size: 0.9rem;
+        text-align: center;
+    }
+
+    .progress-container {
+        display: none;
+        flex-direction: column;
+        margin-top: 1rem;
+    }
+
+    .progress-track {
+        width: 100%;
+        background: var(--bg-color);
+        border-radius: 9999px;
+        height: 8px;
+        overflow: hidden;
+    }
+
+    .progress-bar {
+        height: 100%;
+        width: 0%;
+        background: var(--primary);
+        transition: width 0.3s ease;
+    }
+
+    .tree-preview {
+        display: none;
+        background: var(--bg-color);
+        padding: 1.5rem;
+        border-radius: 8px;
+        border: 1px solid var(--border-subtle);
+        max-height: 250px;
+        overflow-y: auto;
+        margin-top: 1rem;
+    }
+
+    .tree-preview h4 {
+        margin-bottom: 1rem;
+        font-size: 0.95rem;
+        color: var(--success);
+    }
+
+    .tree-preview ul {
+        list-style-type: none;
+        padding-left: 0.5rem;
+        color: var(--text-muted);
+        font-family: monospace;
+        font-size: 0.9rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+    }
+
+    .tree-preview li::before {
+        content: "📄 ";
+    }
+</style>
+
+<script>
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const btnUpload = document.getElementById('btnUpload');
+    const selectedFilesInfo = document.getElementById('selectedFilesInfo');
+    const notificationBanner = document.getElementById('notificationBanner');
+
+    let pendingFiles = [];
+
+    fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        if (e.dataTransfer.files.length) {
+            handleFiles(e.dataTransfer.files);
+        }
+    });
+
+    function handleFiles(files) {
+        pendingFiles = Array.from(files);
+        if (pendingFiles.length > 0) {
+            selectedFilesInfo.textContent = `${pendingFiles.length} file(s) selected automatically. Ready to upload.`;
+            selectedFilesInfo.style.display = 'block';
+            btnUpload.disabled = false;
+            btnUpload.style.opacity = '1';
+        } else {
+            selectedFilesInfo.textContent = '';
+            selectedFilesInfo.style.display = 'none';
+            btnUpload.disabled = true;
+            btnUpload.style.opacity = '0.5';
+        }
+    }
+
+    async function submitUpload(e) {
+        e.preventDefault();
+        if (pendingFiles.length === 0) return;
+
+        const repoId = document.getElementById('repo_id').value;
+        if (!repoId) {
+            showBanner('Please select a repository first.', 'error');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('repo_id', repoId);
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        pendingFiles.forEach(file => formData.append('files', file));
+
+        btnUpload.disabled = true;
+        btnUpload.textContent = 'Uploading...';
+        btnUpload.style.opacity = '0.7';
+        document.getElementById('progressContainer').style.display = 'flex';
+        document.getElementById('fileTreePreview').style.display = 'none';
+        hideBanner();
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '{% url "upload" %}');
+
+        xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) {
+                const percentComplete = Math.round((e.loaded / e.total) * 100);
+                document.getElementById('progressBar').style.width = percentComplete + '%';
+                document.getElementById('progressText').textContent = percentComplete + '%';
+            }
+        });
+
+        xhr.addEventListener('load', () => {
+            document.getElementById('progressContainer').style.display = 'none';
+            btnUpload.textContent = 'Upload Files';
+            btnUpload.disabled = false;
+            btnUpload.style.opacity = '1';
+
+            if (xhr.status >= 200 && xhr.status < 300) {
+                const data = JSON.parse(xhr.responseText);
+                if (data.success) {
+                    showBanner('Upload successful! Repository updated.', 'success');
+                    pendingFiles = [];
+                    fileInput.value = '';
+                    selectedFilesInfo.textContent = '';
+                    selectedFilesInfo.style.display = 'none';
+                    btnUpload.disabled = true;
+                    btnUpload.style.opacity = '0.5';
+
+                    const treePreview = document.getElementById('fileTreePreview');
+                    const treeList = document.getElementById('treeList');
+                    treeList.innerHTML = '';
+                    data.tree.forEach(f => {
+                        const li = document.createElement('li');
+                        li.textContent = f;
+                        treeList.appendChild(li);
+                    });
+                    
+                    const existingBtn = document.getElementById('viewRepoDynamicBtn');
+                    if(existingBtn) existingBtn.remove();
+                    
+                    const viewRepoBtn = document.createElement('a');
+                    viewRepoBtn.href = `/repository-view/?id=${repoId}`;
+                    viewRepoBtn.className = 'btn-primary';
+                    viewRepoBtn.textContent = 'View Repository →';
+                    viewRepoBtn.style.display = 'inline-block';
+                    viewRepoBtn.style.marginTop = '1.5rem';
+                    viewRepoBtn.id = 'viewRepoDynamicBtn';
+                    
+                    treePreview.appendChild(viewRepoBtn);
+                    
+                    treePreview.style.display = 'block';
+                } else {
+                    showBanner(data.error || 'Upload failed.', 'error');
+                }
+            } else {
+                showBanner('Server error occurred during upload.', 'error');
+            }
+        });
+
+        xhr.addEventListener('error', () => {
+            document.getElementById('progressContainer').style.display = 'none';
+            btnUpload.textContent = 'Upload Files';
+            btnUpload.disabled = false;
+            btnUpload.style.opacity = '1';
+            showBanner('Network failure. Please try again.', 'error');
+        });
+
+        xhr.send(formData);
+    }
+
+    function showBanner(message, type) {
+        notificationBanner.style.display = 'block';
+        notificationBanner.textContent = message;
+        notificationBanner.style.backgroundColor = type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)';
+        notificationBanner.style.color = type === 'success' ? 'var(--success)' : 'var(--error)';
+        notificationBanner.style.border = `1px solid ${type === 'success' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`;
+    }
+
+    function hideBanner() {
+        notificationBanner.style.display = 'none';
+    }
+</script>
+{% endblock %}

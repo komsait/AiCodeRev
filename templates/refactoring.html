@@ -1,0 +1,648 @@
+{% extends 'base.html' %}
+{% block title %}Refactoring - AiCodeRev{% endblock %}
+
+{% block content %}
+<div class="page-container" style="max-width: 1400px; margin: 0 auto;">
+
+    {% if status == 'no_smell' %}
+    <div style="margin-bottom: 2rem;">
+        <h2 style="margin: 0; font-size: 2rem; font-weight: 800;">Refactoring Sessions</h2>
+        <p style="color: var(--text-muted); margin-top: 0.5rem;">Select a detected code smell below to start an AI-assisted refactoring session.</p>
+    </div>
+
+    <div class="card table-container" style="border: 1px solid var(--border-subtle); border-radius: 12px; background: var(--surface-color);">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Severity</th>
+                    <th>Type</th>
+                    <th>Repository</th>
+                    <th>File</th>
+                    <th style="text-align: right;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for smell in recent_smells %}
+                <tr>
+                    <td>
+                        <span class="badge {% if smell.severity_level == 'Major' %}danger{% elif smell.severity_level == 'Moderate' %}warning{% else %}info{% endif %}">
+                            {{ smell.severity_level }}
+                        </span>
+                    </td>
+                    <td style="font-weight: 600;">{{ smell.smell_type }}</td>
+                    <td style="color: var(--text-muted);">{{ smell.report.repository.repo_name }}</td>
+                    <td style="font-family: monospace; color: var(--text-muted); max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ smell.file_path }}">{{ smell.file_path }}</td>
+                    <td style="text-align: right;">
+                        <a href="{% url 'refactoring' %}?smell={{ smell.smell_id }}" class="btn-primary-sm">Start Refactoring</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 4rem 2rem;">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">✨</div>
+                        <h4 style="margin: 0 0 0.5rem 0; font-size: 1.25rem;">No Code Smells Found</h4>
+                        <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Run an analysis on your repositories to detect code smells.</p>
+                        <a href="{% url 'repositories' %}" class="btn-primary" style="text-decoration: none;">Go to Repositories</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% elif error %}
+    <div class="empty-state">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">❌</div>
+        <h3 style="margin-bottom: 0.5rem; color: var(--error);">Error Loading Refactoring Session</h3>
+        <p style="color: var(--text-muted); margin-bottom: 1.5rem;">{{ error }}</p>
+        <a href="{% url 'dashboard' %}" class="btn-primary" style="text-decoration: none;">Return to Dashboard</a>
+    </div>
+    {% else %}
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <div style="color: var(--text-muted); font-size: 0.9rem;">
+            Analysis Report &rarr; <span style="font-weight: 500; color: var(--primary);">Refactoring Session</span>
+        </div>
+        <a href="javascript:history.back()" class="btn-outline-sm"
+            style="text-decoration: none; padding: 0.4rem 0.8rem;">&larr; Back</a>
+    </div>
+
+    <!-- Header Panel -->
+    <div class="header-panel">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+                <h2 style="margin: 0; font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Resolve Issue: {{ smell.smell_type }}</h2>
+                <div style="font-family: monospace; color: var(--text-muted); font-size: 0.9rem;">
+                    {{ smell.file_path }} <span style="color: var(--primary);">{{ smell.line_range }}</span>
+                </div>
+            </div>
+            <span
+                class="badge {% if smell.severity_level == 'Major' %}danger{% elif smell.severity_level == 'Moderate' %}warning{% else %}info{% endif %}"
+                style="font-size: 0.85rem;">
+                {{ smell.severity_level }}
+            </span>
+        </div>
+        <div class="issue-description">
+            <strong>Description:</strong> {{ smell.description }}
+        </div>
+    </div>
+
+    <!-- Interactive Workspace (Dual Pane Diff Viewer) -->
+    <div class="diff-viewer">
+
+        <!-- Original Code -->
+        <div class="diff-pane">
+            <div class="pane-header original">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="font-size: 1.2rem; line-height: 1;">-</span>
+                    <span>Original Code</span>
+                </div>
+                <div style="font-size: 0.8rem; opacity: 0.7; font-weight: normal;">Read-only</div>
+            </div>
+            <div class="pane-content diff-code-container" id="original-code-container">
+                {% for line in left_lines %}
+                <div class="diff-line {{ line.class }}">
+                    <span class="line-number">{{ line.number }}</span>
+                    <span class="line-content">{{ line.content }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Suggested Code -->
+        <div class="diff-pane">
+            <div class="pane-header suggested">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="font-size: 1.2rem; line-height: 1;">+</span>
+                    <span>AI Suggested Refactoring</span>
+                </div>
+                <div style="font-size: 0.8rem; opacity: 0.7; font-weight: normal;">{{ active_ai_provider|default:'AI Model' }}</div>
+            </div>
+            <div class="pane-content diff-code-container" id="suggested-code-container">
+                {% for line in right_lines %}
+                <div class="diff-line {{ line.class }}">
+                    <span class="line-number">{{ line.number }}</span>
+                    <span class="line-content">{{ line.content }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Actions Bar (Sticky) -->
+    <div class="actions-bar">
+        <div style="display: flex; gap: 1rem; align-items: center; flex: 1; max-width: 500px;">
+            <div class="input-wrapper" style="flex: 1; position: relative;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted);">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+                <input type="text" placeholder="Tune prompt (e.g. 'Use list comprehension')..." class="prompt-input">
+            </div>
+            <button class="btn-outline glow-on-hover">Tune AI</button>
+        </div>
+
+        <div style="display: flex; gap: 1rem;">
+            <form method="post" action="{% url 'refactoring' %}" style="margin: 0;">
+                {% csrf_token %}
+                <input type="hidden" name="suggestion_id" class="suggestion-id-input" value="{{ suggestion.suggestion_id }}">
+                <input type="hidden" name="action" value="reject">
+                <button type="submit" class="btn-danger-outline">Reject Details</button>
+            </form>
+
+            <form method="post" action="{% url 'refactoring' %}" style="margin: 0;" id="applyForm">
+                {% csrf_token %}
+                <input type="hidden" name="suggestion_id" class="suggestion-id-input" value="{{ suggestion.suggestion_id }}">
+                <input type="hidden" name="action" value="accept">
+                <button type="submit" class="btn-success">Apply Refactoring &rarr;</button>
+            </form>
+        </div>
+    </div>
+
+    {% endif %}
+
+</div>
+
+<style>
+    .empty-state {
+        text-align: center;
+        padding: 6rem 2rem;
+        background: var(--surface-color);
+        border: 1px dashed var(--border-subtle);
+        border-radius: 12px;
+        margin-top: 2rem;
+    }
+
+    .table-container {
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+    }
+
+    .data-table th {
+        padding: 1rem 1.5rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        border-bottom: 1px solid var(--border-subtle);
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .data-table td {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--border-subtle);
+        vertical-align: middle;
+    }
+
+    .data-table tbody tr:hover {
+        background: rgba(255, 255, 255, 0.02);
+    }
+
+    .data-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .btn-primary-sm {
+        padding: 0.4rem 0.8rem;
+        background: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        text-decoration: none;
+        font-weight: 500;
+        transition: background 0.2s;
+        display: inline-block;
+    }
+
+    .btn-primary-sm:hover {
+        background: var(--primary-hover);
+        color: white !important;
+    }
+
+    .header-panel {
+        background: var(--surface-color);
+        border: 1px solid var(--border-subtle);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .issue-description {
+        background: rgba(167, 139, 250, 0.05);
+        border-left: 4px solid var(--primary);
+        padding: 1rem 1.25rem;
+        border-radius: 0 8px 8px 0;
+        margin-top: 1rem;
+        font-size: 0.95rem;
+        color: var(--text-color);
+        line-height: 1.6;
+    }
+
+    .diff-viewer {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0;
+        min-height: 500px;
+        margin-bottom: 2rem;
+        background: var(--surface-color);
+        border: 1px solid var(--border-subtle);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .diff-pane {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .diff-pane:first-child {
+        border-right: 1px solid var(--border-subtle);
+    }
+
+    .pane-header {
+        padding: 1rem 1.5rem;
+        font-weight: 600;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+    }
+
+    .pane-header.original {
+        background: rgba(239, 68, 68, 0.1);
+        color: var(--error);
+    }
+
+    .pane-header.suggested {
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--success);
+    }
+
+    .pane-content {
+        flex: 1;
+        padding: 1.5rem;
+        overflow: auto;
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 0.9rem;
+        line-height: 1.6;
+        background: var(--bg-color);
+    }
+
+    .pane-content pre {
+        margin: 0;
+        white-space: pre-wrap;
+    }
+
+    .pane-content.editable:focus {
+        outline: none;
+        background: rgba(255, 255, 255, 0.02);
+    }
+
+    .diff-code-container {
+        flex: 1;
+        overflow: auto;
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 0.85rem;
+        line-height: 1.5;
+        background: var(--bg-color);
+        padding: 1rem 0;
+    }
+
+    .diff-line {
+        display: flex;
+        white-space: pre;
+        min-height: 1.5rem;
+        min-width: max-content;
+        width: 100%;
+    }
+
+    .line-number {
+        width: 3.5rem;
+        text-align: right;
+        padding-right: 1rem;
+        color: var(--text-muted);
+        user-select: none;
+        border-right: 1px solid var(--border-subtle);
+        margin-right: 0.5rem;
+        flex-shrink: 0;
+    }
+
+    .line-content {
+        padding-left: 0.5rem;
+        flex: 1;
+    }
+
+    .line-normal {
+        color: var(--text-color);
+    }
+
+    .line-deleted {
+        background-color: rgba(239, 68, 68, 0.15);
+        color: #FCA5A5;
+    }
+
+    .line-added {
+        background-color: rgba(16, 185, 129, 0.15);
+        color: #6EE7B7;
+    }
+
+    .line-placeholder {
+        background-color: rgba(255, 255, 255, 0.01);
+        opacity: 0.25;
+    }
+
+    .line-smell {
+        background-color: rgba(245, 158, 11, 0.1);
+        border-left: 3px solid var(--warning);
+    }
+
+    .line-deleted-smell {
+        background-color: rgba(239, 68, 68, 0.15);
+        border-left: 3px solid var(--error);
+        color: #FCA5A5;
+    }
+
+    .actions-bar {
+        position: sticky;
+        bottom: 2rem;
+        background: var(--surface-color);
+        padding: 1.25rem 1.5rem;
+        border-radius: 12px;
+        border: 1px solid var(--border-subtle);
+        box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        z-index: 10;
+        backdrop-filter: blur(10px);
+    }
+
+    .prompt-input {
+        width: 100%;
+        padding: 0.8rem 1rem 0.8rem 2.8rem;
+        border-radius: 8px;
+        border: 1px solid var(--border-subtle);
+        background: rgba(0, 0, 0, 0.2);
+        color: var(--text-color);
+        font-family: inherit;
+        font-size: 0.95rem;
+        transition: all 0.2s;
+    }
+
+    .prompt-input:focus {
+        outline: none;
+        border-color: var(--primary);
+        background: var(--bg-color);
+    }
+
+    .btn-outline {
+        padding: 0.8rem 1.5rem;
+        background: transparent;
+        color: var(--text-color);
+        border: 1px solid var(--border-subtle);
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+
+    .btn-outline:hover {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: var(--text-muted);
+    }
+
+    .btn-outline-sm {
+        padding: 0.4rem 0.8rem;
+        background: transparent;
+        color: var(--text-color);
+        border: 1px solid var(--border-subtle);
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        margin-right: 0.5rem;
+        transition: background 0.2s;
+    }
+
+    .btn-outline-sm:hover {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .btn-danger-outline {
+        padding: 0.8rem 1.5rem;
+        background: transparent;
+        border: 1px solid rgba(239, 68, 68, 0.5);
+        color: var(--error);
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+
+    .btn-danger-outline:hover {
+        background: rgba(239, 68, 68, 0.1);
+        border-color: var(--error);
+    }
+
+    .btn-success {
+        padding: 0.8rem 1.5rem;
+        background: var(--success);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-success:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(16, 185, 129, 0.35);
+    }
+
+    .badge {
+        padding: 0.25rem 0.6rem;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .badge.danger {
+        background: rgba(239, 68, 68, 0.15);
+        color: var(--error);
+    }
+
+    .badge.warning {
+        background: rgba(245, 158, 11, 0.15);
+        color: var(--warning);
+    }
+
+    .badge.info {
+        background: rgba(59, 130, 246, 0.15);
+        color: #3B82F6;
+    }
+
+    .spinner {
+        display: inline-block;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top: 2px solid white;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+</style>
+
+<script>
+    (function() {
+        const applyForm = document.getElementById('applyForm');
+        if (applyForm) {
+            applyForm.addEventListener('submit', function (e) {
+                const btn = this.querySelector('button[type="submit"]');
+                btn.innerHTML = '<span class="spinner" style="width: 16px; height: 16px;"></span> Applying...';
+                btn.style.pointerEvents = 'none';
+                btn.style.opacity = '0.8';
+            });
+        }
+
+        // Synchronize scrolling of diff panes
+        const containers = document.querySelectorAll('.diff-code-container');
+        containers.forEach(container => {
+            container.addEventListener('scroll', function() {
+                containers.forEach(other => {
+                    if (other !== container) {
+                        other.scrollTop = container.scrollTop;
+                        other.scrollLeft = container.scrollLeft;
+                    }
+                });
+            });
+        });
+
+        // Tune AI logic
+        const tuneBtn = document.querySelector('.btn-outline.glow-on-hover');
+        const promptInput = document.querySelector('.prompt-input');
+        const originalContainer = document.getElementById('original-code-container');
+        const suggestedContainer = document.getElementById('suggested-code-container');
+
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g, 
+                tag => ({
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    "'": '&#39;',
+                    '"': '&quot;'
+                }[tag] || tag)
+            );
+        }
+
+        function renderDiff(leftLines, rightLines) {
+            originalContainer.innerHTML = '';
+            suggestedContainer.innerHTML = '';
+
+            leftLines.forEach(line => {
+                const div = document.createElement('div');
+                div.className = `diff-line ${line.class}`;
+                div.innerHTML = `<span class="line-number">${line.number}</span><span class="line-content">${escapeHTML(line.content)}</span>`;
+                originalContainer.appendChild(div);
+            });
+
+            rightLines.forEach(line => {
+                const div = document.createElement('div');
+                div.className = `diff-line ${line.class}`;
+                div.innerHTML = `<span class="line-number">${line.number}</span><span class="line-content">${escapeHTML(line.content)}</span>`;
+                suggestedContainer.appendChild(div);
+            });
+        }
+
+        if (tuneBtn && promptInput) {
+            tuneBtn.addEventListener('click', function() {
+                const instructions = promptInput.value.trim();
+                if (!instructions) return;
+
+                const originalBtnText = tuneBtn.innerHTML;
+                tuneBtn.innerHTML = '<span class="spinner" style="width: 14px; height: 14px;"></span> Tuning...';
+                tuneBtn.disabled = true;
+                promptInput.disabled = true;
+
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                const smellId = '{{ smell.smell_id }}';
+
+                const formData = new FormData();
+                formData.append('action', 'tune');
+                formData.append('instructions', instructions);
+                formData.append('smell_id', smellId);
+                formData.append('csrfmiddlewaretoken', csrfToken);
+
+                fetch("{% url 'refactoring' %}", {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Update suggestion id hidden fields
+                        document.querySelectorAll('.suggestion-id-input').forEach(input => {
+                            input.value = data.suggestion_id;
+                        });
+                        // Re-render side-by-side diff
+                        renderDiff(data.left_lines, data.right_lines);
+                        promptInput.value = '';
+                    } else {
+                        alert('Error: ' + (data.error || 'Failed to tune AI suggestion.'));
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert('An unexpected error occurred during tuning.');
+                })
+                .finally(() => {
+                    tuneBtn.innerHTML = originalBtnText;
+                    tuneBtn.disabled = false;
+                    promptInput.disabled = false;
+                });
+            });
+            
+            // Allow tuning on press enter
+            promptInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    tuneBtn.click();
+                }
+            });
+        }
+    })();
+</script>
+{% endblock %}

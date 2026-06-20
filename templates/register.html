@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% block title %}Create Account - AiCodeRev{% endblock %}
+{% block public_content %}
+<div class="auth-container">
+    <div class="auth-card"
+        style="width: 100%; max-width: 440px; background: var(--surface-color); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 2.5rem; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);">
+        <div style="text-align: center; margin-bottom: 2rem;">
+            <a href="{% url 'landing' %}" class="brand" style="font-size: 1.5rem;">AiCodeRev</a>
+            <h2 style="margin-top: 1rem; font-size: 1.5rem; font-weight: 700;">Create an account</h2>
+            <p style="color: var(--text-muted); margin-top: 0.5rem; font-size: 0.95rem;">Join us to transform your code
+                quality.</p>
+        </div>
+
+        <form method="post" action="{% url 'register' %}" style="display: flex; flex-direction: column; gap: 1.25rem;">
+            {% csrf_token %}
+            {% if form.errors %}
+            <div
+                style="background: rgba(239, 68, 68, 0.1); border-left: 4px solid var(--error); padding: 1rem; border-radius: 4px;">
+                <p style="color: var(--error); font-size: 0.9rem; font-weight: 500;">Please correct the errors below.
+                </p>
+            </div>
+            {% endif %}
+
+            <div class="form-group">
+                <label>Username</label>
+                {{ form.username }}
+                {% if form.username.errors %}<div class="error-msg">{{ form.username.errors }}</div>{% endif %}
+            </div>
+
+            <div class="form-group">
+                <label>Email</label>
+                {{ form.email }}
+                {% if form.email.errors %}<div class="error-msg">{{ form.email.errors }}</div>{% endif %}
+            </div>
+
+            <div class="form-group">
+                <label>Password</label>
+                {{ form.password }}
+                {% if form.password.errors %}<div class="error-msg">{{ form.password.errors }}</div>{% endif %}
+            </div>
+
+            <div class="form-group">
+                <label>Confirm Password</label>
+                {{ form.confirm_password }}
+                {% if form.confirm_password.errors %}<div class="error-msg">{{ form.confirm_password.errors }}</div>{% endif %}
+            </div>
+
+            <div style="display: flex; align-items: flex-start; gap: 0.75rem; margin-top: 0.5rem;">
+                <div style="padding-top: 2px;">{{ form.terms_accepted }}</div>
+                <label style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.4;">I accept the <a href="#"
+                        style="color: var(--primary);">Terms and Conditions</a> and <a href="#"
+                        style="color: var(--primary);">Privacy Policy</a>.</label>
+            </div>
+            {% if form.terms_accepted.errors %}<div class="error-msg">{{ form.terms_accepted.errors }}</div>{% endif %}
+
+            <button type="submit" class="btn-primary"
+                style="margin-top: 0.5rem; padding: 0.875rem; font-size: 1rem; width: 100%;">Sign Up</button>
+
+            <div style="text-align: center; margin-top: 1rem; font-size: 0.95rem; color: var(--text-muted);">
+                Already have an account? <a href="{% url 'login' %}"
+                    style="color: var(--primary); font-weight: 500; text-decoration: none;">Sign in</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .auth-container {
+        min-height: calc(100vh - 4rem);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .form-group label {
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: var(--text-color);
+    }
+
+    form input[type="text"],
+    form input[type="email"],
+    form input[type="password"] {
+        padding: 0.75rem 1rem;
+        border-radius: 6px;
+        border: 1px solid var(--border-subtle);
+        background: var(--bg-color);
+        color: var(--text-color);
+        font-size: 1rem;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        font-family: inherit;
+    }
+
+    form input[type="text"]:focus,
+    form input[type="email"]:focus,
+    form input[type="password"]:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.2);
+    }
+
+    .error-msg {
+        color: var(--error);
+        font-size: 0.85rem;
+        margin-top: 0.25rem;
+    }
+</style>
+{% endblock %}

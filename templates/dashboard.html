@@ -1,0 +1,465 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard - AiCodeRev{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    
+    <!-- Modern Welcome Banner -->
+    <div class="welcome-banner">
+        <div class="welcome-content">
+            <h1 class="welcome-title">Welcome back, <span class="gradient-text">{{ user.username }}</span>!</h1>
+            <p class="welcome-subtitle">Here is an overview of your code quality and recent activity.</p>
+        </div>
+        <div class="welcome-actions">
+            <a href="{% url 'repositories' %}" class="btn-glass">View Repositories</a>
+            <a href="{% url 'upload' %}" class="btn-primary-gradient">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                New Analysis
+            </a>
+        </div>
+    </div>
+
+    <!-- Stat Cards -->
+    <div class="stats-grid">
+        <div class="stat-card hover-glow">
+            <div class="stat-icon-wrapper repo-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+            </div>
+            <div class="stat-info">
+                <div class="stat-value">{{ repo_count }}</div>
+                <div class="stat-label">Active Repositories</div>
+            </div>
+        </div>
+        
+        <div class="stat-card hover-glow">
+            <div class="stat-icon-wrapper smell-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            </div>
+            <div class="stat-info">
+                <div class="stat-value">{{ critical_smells_count }}</div>
+                <div class="stat-label">Critical Code Smells</div>
+            </div>
+        </div>
+
+        <div class="stat-card hover-glow">
+            <div class="stat-icon-wrapper health-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            </div>
+            <div class="stat-info">
+                <div class="stat-value">{{ health_score }}%</div>
+                <div class="stat-label">Average Health Score</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="dashboard-main-grid">
+        
+        <!-- Recent Activity Timeline -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h3>Recent Activity</h3>
+            </div>
+            <div class="activity-timeline">
+                {% for act in activities %}
+                <div class="timeline-item">
+                    <div class="timeline-dot dot-{{ act.type }}"></div>
+                    <div class="timeline-content">
+                        <p class="timeline-msg">{{ act.message }} <span class="highlight">{{ act.repo }}</span></p>
+                        <span class="timeline-date">{{ act.date|date:"M d, g:i A" }}</span>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="empty-state">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 1rem;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    <p>No recent activity found.</p>
+                    <span style="font-size: 0.9rem; margin-top: 0.5rem;">Try uploading a project and running an analysis!</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h3>Quick Actions</h3>
+            </div>
+            <div class="quick-actions-grid">
+                <a href="{% url 'upload' %}" class="action-btn">
+                    <div class="action-icon icon-blue">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    </div>
+                    <div class="action-text">Upload Archive</div>
+                </a>
+                <a href="{% url 'analysis-report' %}" class="action-btn">
+                    <div class="action-icon icon-purple">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                    </div>
+                    <div class="action-text">View Analysis</div>
+                </a>
+                <a href="{% url 'history' %}" class="action-btn">
+                    <div class="action-icon icon-green">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"></line><circle cx="18" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><path d="M18 9a9 9 0 0 1-9 9"></path></svg>
+                    </div>
+                    <div class="action-text">Commit History</div>
+                </a>
+                <a href="{% url 'repositories' %}" class="action-btn">
+                    <div class="action-icon icon-yellow">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+                    </div>
+                    <div class="action-text">Workspaces</div>
+                </a>
+            </div>
+        </div>
+        
+    </div>
+</div>
+
+<style>
+    /* Modern Dashboard Styling */
+    .dashboard-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding-bottom: 2rem;
+    }
+
+    /* Welcome Banner */
+    .welcome-banner {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 2.5rem;
+        background: linear-gradient(135deg, rgba(167, 139, 250, 0.05) 0%, rgba(0, 0, 0, 0) 100%);
+        border: 1px solid var(--border-subtle);
+        border-radius: 16px;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .welcome-banner::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -10%;
+        width: 300px;
+        height: 300px;
+        background: radial-gradient(circle, rgba(167, 139, 250, 0.15) 0%, transparent 70%);
+        border-radius: 50%;
+        z-index: 0;
+        pointer-events: none;
+    }
+
+    .welcome-content, .welcome-actions {
+        position: relative;
+        z-index: 1;
+    }
+
+    .welcome-title {
+        font-size: 2.25rem;
+        font-weight: 800;
+        margin-bottom: 0.5rem;
+        letter-spacing: -0.02em;
+    }
+
+    .gradient-text {
+        background: linear-gradient(90deg, #A78BFA, #34D399);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .welcome-subtitle {
+        color: var(--text-muted);
+        font-size: 1.05rem;
+    }
+
+    .welcome-actions {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .btn-glass {
+        padding: 0.75rem 1.5rem;
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: var(--text-color);
+        border-radius: 8px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+
+    .btn-glass:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-primary-gradient {
+        padding: 0.75rem 1.5rem;
+        background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.2s;
+        box-shadow: 0 4px 15px rgba(167, 139, 250, 0.25);
+    }
+
+    .btn-primary-gradient:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(167, 139, 250, 0.4);
+        color: white;
+    }
+
+    /* Stat Cards */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2.5rem;
+    }
+
+    .stat-card {
+        background: var(--surface-color);
+        border: 1px solid var(--border-subtle);
+        border-radius: 16px;
+        padding: 1.75rem;
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card.hover-glow:hover {
+        transform: translateY(-4px);
+        border-color: rgba(255, 255, 255, 0.15);
+        box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+    }
+
+    .stat-icon-wrapper {
+        width: 60px;
+        height: 60px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .repo-icon {
+        background: rgba(167, 139, 250, 0.1);
+        color: #A78BFA;
+        border: 1px solid rgba(167, 139, 250, 0.2);
+    }
+
+    .smell-icon {
+        background: rgba(245, 158, 11, 0.1);
+        color: #F59E0B;
+        border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+
+    .health-icon {
+        background: rgba(16, 185, 129, 0.1);
+        color: #10B981;
+        border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+
+    .stat-info {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .stat-value {
+        font-size: 2.25rem;
+        font-weight: 800;
+        line-height: 1.1;
+        margin-bottom: 0.25rem;
+        color: var(--text-color);
+    }
+
+    .stat-label {
+        color: var(--text-muted);
+        font-size: 0.95rem;
+        font-weight: 500;
+    }
+
+    /* Main Grid */
+    .dashboard-main-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 2rem;
+    }
+
+    @media (max-width: 1024px) {
+        .dashboard-main-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .dashboard-card {
+        background: var(--surface-color);
+        border: 1px solid var(--border-subtle);
+        border-radius: 16px;
+        padding: 2rem;
+    }
+
+    .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+    }
+
+    .card-header h3 {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 700;
+    }
+
+    /* Timeline */
+    .activity-timeline {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        position: relative;
+    }
+
+    .activity-timeline::before {
+        content: '';
+        position: absolute;
+        left: 6px;
+        top: 8px;
+        bottom: 16px;
+        width: 2px;
+        background: var(--border-subtle);
+        z-index: 0;
+    }
+
+    .timeline-item {
+        display: flex;
+        gap: 1.5rem;
+        align-items: flex-start;
+        position: relative;
+        z-index: 1;
+        padding-bottom: 2rem;
+    }
+
+    .timeline-item:last-child {
+        padding-bottom: 0;
+    }
+
+    .timeline-dot {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        margin-top: 4px;
+        border: 3px solid var(--surface-color);
+        box-shadow: 0 0 0 1px var(--border-subtle);
+    }
+
+    .dot-commit { background: var(--success); box-shadow: 0 0 0 1px var(--success); }
+    .dot-analysis { background: var(--warning); box-shadow: 0 0 0 1px var(--warning); }
+    .dot-refactoring { background: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+
+    .timeline-content {
+        flex: 1;
+        margin-top: -1px;
+    }
+
+    .timeline-msg {
+        margin: 0 0 0.4rem 0;
+        font-size: 0.95rem;
+        line-height: 1.5;
+        color: var(--text-color);
+    }
+
+    .timeline-msg .highlight {
+        color: var(--primary);
+        font-weight: 500;
+    }
+
+    .timeline-date {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--text-muted);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background: rgba(0,0,0,0.2);
+        border-radius: 12px;
+        border: 1px dashed var(--border-subtle);
+    }
+
+    /* Quick Actions */
+    .quick-actions-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+
+    .action-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        padding: 1.5rem 1rem;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid var(--border-subtle);
+        border-radius: 12px;
+        text-decoration: none;
+        color: var(--text-color);
+        transition: all 0.2s;
+        text-align: center;
+    }
+
+    .action-btn:hover {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255,255,255,0.2);
+        transform: translateY(-2px);
+    }
+
+    .action-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .icon-blue { color: #60A5FA; background: rgba(96, 165, 250, 0.1); }
+    .icon-purple { color: #A78BFA; background: rgba(167, 139, 250, 0.1); }
+    .icon-green { color: #34D399; background: rgba(52, 211, 153, 0.1); }
+    .icon-yellow { color: #FBBF24; background: rgba(251, 191, 36, 0.1); }
+
+    .action-text {
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+    
+    /* Light Theme Adjustments */
+    [data-theme="light"] .welcome-banner {
+        background: linear-gradient(135deg, rgba(124, 58, 237, 0.05) 0%, rgba(255, 255, 255, 0.5) 100%);
+    }
+    
+    [data-theme="light"] .btn-glass {
+        background: rgba(255, 255, 255, 0.7);
+        border-color: rgba(0, 0, 0, 0.1);
+        color: #111827;
+    }
+</style>
+{% endblock %}

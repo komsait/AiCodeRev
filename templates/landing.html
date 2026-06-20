@@ -1,0 +1,526 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}AiCodeRev - Maintain Code Quality{% endblock %}
+{% block public_content %}
+<div class="landing-wrapper">
+    <!-- Glowing background accent -->
+    <div class="glow-accent"></div>
+
+    <div class="landing-container">
+        <!-- Navigation -->
+        <nav class="landing-nav">
+            <div class="nav-brand">
+                <span class="brand-name">AiCodeRev</span>
+                <span class="brand-tag">v1.0</span>
+            </div>
+            
+            <div class="nav-pill">
+                <a href="#features">Features</a>
+                <a href="#pricing">Pricing</a>
+                <a href="#docs">Docs</a>
+                <a href="#faq">FAQ</a>
+            </div>
+
+            <div class="nav-actions">
+                <a href="{% url 'login' %}" class="login-link">Sign In</a>
+                <a href="{% url 'register' %}" class="btn-get-started">
+                    Get started
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                </a>
+            </div>
+        </nav>
+
+        <!-- Hero Section -->
+        <main class="hero-split">
+            <!-- Left Content -->
+            <div class="hero-content">
+                <h1 class="hero-headline">
+                    Elevate Your Code Quality.<br>
+                    <span class="highlight-text">Guaranteed.</span>
+                </h1>
+                <p class="hero-subtext">
+                    AiCodeRev integrates Gemini API to detect maintainability issues, generate refactoring suggestions, and provide seamless version control. Say goodbye to technical debt.
+                </p>
+                
+                <div class="hero-actions" style="margin-top: 2rem;">
+                    <a href="{% url 'register' %}" class="btn-analyze" style="display: inline-flex; text-decoration: none; padding: 12px 32px; font-size: 1.1rem;">
+                        Get Started for Free
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left: 8px;"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Right Graphic -->
+            <div class="hero-graphic">
+                <img src="{% static 'images/hero_3d.png' %}" alt="AI Code Refactoring 3D Graphic" class="floating-image">
+                
+                <!-- Decorative Chat Bubbles mimicking the reference -->
+                <div class="chat-bubble bubble-1">
+                    Ready to fix those code smells?
+                    <div class="bubble-tail"></div>
+                </div>
+                <div class="chat-bubble bubble-2 highlight-bubble">
+                    Absolutely!
+                    <div class="bubble-tail-right"></div>
+                </div>
+                <div class="chat-bubble bubble-3">
+                    Hi, I'm the AI Assistant. Need a refactoring suggestion?
+                    <div class="bubble-tail"></div>
+                </div>
+                <div class="chat-bubble bubble-4 highlight-bubble">
+                    Yes. How about extracting that method?
+                    <div class="bubble-tail-right"></div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Bottom Banner -->
+        <section class="testimonial-banner">
+            <div class="testimonial-content">
+                <h2 class="quote-text">"Incredible"</h2>
+                <div class="author-info">
+                    <div class="author-avatar">KT</div>
+                    <div class="author-details">
+                        <strong>Khaled Tahoon</strong>
+                        <span>Creator of AiCodeRev</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="company-logos">
+                <div class="logo-placeholder" style="font-weight: 800; font-family: monospace;">{"Django"}</div>
+                <div class="logo-placeholder" style="font-style: italic; font-weight: 700;">PostgreSQL</div>
+                <div class="logo-placeholder" style="letter-spacing: 2px;">DOCKER</div>
+                <div class="logo-placeholder" style="font-family: sans-serif; display: flex; align-items: center; gap: 4px;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                    Gemini
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+
+<style>
+    /* Reset & Fonts inherited from base.html, but let's override specific landing properties */
+    
+    .landing-wrapper {
+        min-height: 100vh;
+        background-color: var(--bg-color); /* #070707 from base */
+        color: #ffffff;
+        position: relative;
+        overflow: hidden;
+        font-family: var(--font-family);
+    }
+
+    .glow-accent {
+        position: absolute;
+        width: 800px;
+        height: 800px;
+        background: radial-gradient(circle, rgba(167, 139, 250, 0.15) 0%, rgba(7, 7, 7, 0) 70%);
+        top: -100px;
+        right: -100px;
+        border-radius: 50%;
+        z-index: 0;
+        pointer-events: none;
+    }
+
+    .landing-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 2rem;
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+
+    /* Navigation */
+    .landing-nav {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 2rem 0;
+    }
+
+    .nav-brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .brand-name {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: #ffffff;
+        letter-spacing: -0.5px;
+    }
+
+    .brand-tag {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .nav-pill {
+        display: flex;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 100px;
+        padding: 4px;
+        backdrop-filter: blur(10px);
+    }
+
+    .nav-pill a {
+        color: #E9ECF5;
+        text-decoration: none;
+        padding: 8px 20px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        border-radius: 100px;
+        transition: background 0.2s, color 0.2s;
+    }
+
+    .nav-pill a:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
+    }
+
+    .nav-actions {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+    }
+
+    .login-link {
+        color: #E9ECF5;
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 0.95rem;
+        transition: color 0.2s;
+    }
+
+    .login-link:hover {
+        color: #ffffff;
+    }
+
+    .btn-get-started {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: transparent;
+        color: #ffffff;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.95rem;
+        padding: 10px 20px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 100px;
+        transition: all 0.2s;
+    }
+
+    .btn-get-started:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.4);
+    }
+
+    /* Hero Section */
+    .hero-split {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        align-items: center;
+        flex: 1;
+        gap: 4rem;
+        padding: 4rem 0 6rem;
+    }
+
+    .hero-content {
+        max-width: 600px;
+    }
+
+    .hero-headline {
+        font-size: 4.5rem;
+        font-weight: 800;
+        line-height: 1.1;
+        margin-bottom: 1.5rem;
+        letter-spacing: -1.5px;
+    }
+
+    .highlight-text {
+        background: linear-gradient(135deg, #A78BFA 0%, #8B5CF6 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .hero-subtext {
+        font-size: 1.15rem;
+        color: #9CA3AF;
+        line-height: 1.6;
+        margin-bottom: 3rem;
+        max-width: 90%;
+    }
+
+    .repo-input-group {
+        display: flex;
+        gap: 12px;
+        align-items: stretch;
+    }
+
+    .input-wrapper {
+        position: relative;
+        flex: 1;
+        display: flex;
+        align-items: center;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        padding: 0 16px;
+        transition: border-color 0.2s;
+    }
+
+    .input-wrapper:focus-within {
+        border-color: #A78BFA;
+    }
+
+    .ai-badge {
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: #A78BFA;
+        background: rgba(167, 139, 250, 0.1);
+        padding: 4px 8px;
+        border-radius: 4px;
+        margin-right: 12px;
+    }
+
+    .repo-input {
+        background: transparent;
+        border: none;
+        color: #ffffff;
+        font-size: 1rem;
+        width: 100%;
+        padding: 16px 0;
+        font-family: inherit;
+    }
+
+    .repo-input:focus {
+        outline: none;
+    }
+
+    .repo-input::placeholder {
+        color: #6B7280;
+    }
+
+    .btn-analyze {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: #3B82F6; /* Keeping a strong blue/purple call to action similar to the reference */
+        background: linear-gradient(135deg, #6D28D9 0%, #3B82F6 100%);
+        color: #ffffff;
+        border: none;
+        padding: 0 24px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: opacity 0.2s, transform 0.1s;
+    }
+
+    .btn-analyze:hover {
+        opacity: 0.9;
+    }
+    
+    .btn-analyze:active {
+        transform: scale(0.98);
+    }
+
+    /* Graphic Section */
+    .hero-graphic {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .floating-image {
+        width: 120%;
+        max-width: 800px;
+        transform: translateX(10%);
+        animation: float 6s ease-in-out infinite;
+        filter: drop-shadow(0 20px 40px rgba(0,0,0,0.5));
+    }
+
+    @keyframes float {
+        0% { transform: translateX(10%) translateY(0px); }
+        50% { transform: translateX(10%) translateY(-20px); }
+        100% { transform: translateX(10%) translateY(0px); }
+    }
+
+    /* Chat Bubbles */
+    .chat-bubble {
+        position: absolute;
+        background: rgba(255, 255, 255, 0.9);
+        color: #111827;
+        padding: 12px 20px;
+        border-radius: 16px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        max-width: 250px;
+        z-index: 10;
+        animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        opacity: 0;
+    }
+
+    .highlight-bubble {
+        background: #3B82F6;
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+        color: #ffffff;
+    }
+
+    .bubble-tail {
+        position: absolute;
+        bottom: -8px;
+        left: 20px;
+        width: 0;
+        height: 0;
+        border-left: 10px solid transparent;
+        border-right: 10px solid transparent;
+        border-top: 10px solid rgba(255, 255, 255, 0.9);
+    }
+
+    .bubble-tail-right {
+        position: absolute;
+        bottom: -8px;
+        right: 20px;
+        width: 0;
+        height: 0;
+        border-left: 10px solid transparent;
+        border-right: 10px solid transparent;
+        border-top: 10px solid #2563EB;
+    }
+
+    .bubble-1 { top: 10%; left: 0; animation-delay: 0.5s; }
+    .bubble-2 { top: 25%; right: -5%; animation-delay: 1.5s; }
+    .bubble-3 { top: 50%; left: -10%; animation-delay: 2.5s; }
+    .bubble-4 { top: 75%; right: -10%; animation-delay: 3.5s; }
+
+    @keyframes popIn {
+        0% { transform: scale(0.8); opacity: 0; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+
+    /* Bottom Banner */
+    .testimonial-banner {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 24px 24px 0 0;
+        padding: 3rem 4rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: auto;
+        backdrop-filter: blur(20px);
+    }
+
+    .testimonial-content {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .quote-text {
+        font-size: 3rem;
+        font-weight: 800;
+        font-style: italic;
+        color: #ffffff;
+        margin: 0;
+        letter-spacing: -1px;
+    }
+
+    .author-info {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .author-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #A78BFA, #8B5CF6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 1rem;
+    }
+
+    .author-details strong {
+        display: block;
+        font-size: 0.95rem;
+    }
+
+    .author-details span {
+        font-size: 0.85rem;
+        color: #9CA3AF;
+    }
+
+    .company-logos {
+        display: flex;
+        gap: 3rem;
+        align-items: center;
+        opacity: 0.5;
+    }
+
+    .logo-placeholder {
+        font-size: 1.25rem;
+        color: #ffffff;
+        user-select: none;
+    }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+        .hero-split {
+            grid-template-columns: 1fr;
+            text-align: center;
+            gap: 2rem;
+            padding-top: 2rem;
+        }
+
+        .hero-content {
+            margin: 0 auto;
+        }
+
+        .hero-subtext {
+            margin: 0 auto 2rem;
+        }
+
+        .repo-input-group {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .testimonial-banner {
+            flex-direction: column;
+            gap: 2rem;
+            text-align: center;
+            padding: 2rem;
+        }
+        
+        .author-info {
+            justify-content: center;
+        }
+        
+        .company-logos {
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}

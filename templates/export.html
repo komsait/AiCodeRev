@@ -1,0 +1,254 @@
+{% extends 'base.html' %}
+{% block title %}Export Repository - AiCodeRev{% endblock %}
+{% block nav_export %}active{% endblock %}
+
+{% block content %}
+<div class="page-container"
+    style="max-width: 1000px; margin: 0 auto; min-height: calc(100vh - 8rem); display: flex; flex-direction: column;">
+
+    {% if status == 'no_repo' %}
+    <div class="empty-state">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">📦</div>
+        <h3 style="margin-bottom: 0.5rem; color: var(--text-color);">Select a Repository to Export</h3>
+        <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Choose a workspace to package its source code and
+            Git history.</p>
+        <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+            {% for r in repos %}
+            <a href="?repo={{ r.repository_id }}" class="btn-outline">{{ r.repo_name }}</a>
+            {% empty %}
+            <a href="{% url 'repositories' %}" class="btn-primary" style="text-decoration: none;">Initialize
+                Repository</a>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem;">
+        <div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                <a href="{% url 'repositories' %}"
+                    style="color: var(--text-muted); text-decoration: none;">Repository</a>
+                <span style="color: var(--text-muted);">/</span>
+                <span style="font-weight: 600; color: var(--primary);">{{ repo.repo_name }}</span>
+            </div>
+            <h1 style="font-size: 2rem; font-weight: 800;">Export Workspace</h1>
+        </div>
+    </div>
+
+    <div class="export-card">
+        <div class="export-icon-container">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="export-icon">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+        </div>
+
+        <h3 style="margin-bottom: 1rem; font-size: 1.5rem;">Ready to Download</h3>
+
+        <p class="export-description">
+            This will package the entire <strong style="color: var(--text-color);">{{ repo.repo_name }}</strong>
+            workspace into a compliant ZIP archive.
+            The archive will include all your source files, AI analysis configurations, and the complete hidden
+            <code>.git</code> version history tree.
+        </p>
+
+        <div class="repo-details-box">
+            <div class="detail-row">
+                <span class="detail-label">Repository ID</span>
+                <span class="detail-value" style="font-family: monospace;">{{ repo.repository_id }}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Created At</span>
+                <span class="detail-value">{{ repo.created_at|date:"M d, Y" }}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Upload Mechanism</span>
+                <span class="detail-value" style="text-transform: capitalize;">{{ repo.upload_type }}</span>
+            </div>
+        </div>
+
+        <form method="post" action="{% url 'export' %}" id="exportForm"
+            style="width: 100%; max-width: 400px; display: flex; flex-direction: column; align-items: center;">
+            {% csrf_token %}
+            <input type="hidden" name="repo_id" value="{{ repo.repository_id }}">
+            <button type="submit" id="btnExport" class="btn-primary"
+                style="width: 100%; padding: 1rem 2rem; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; gap: 0.75rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                Download ZIP Archive
+            </button>
+        </form>
+
+    </div>
+    {% endif %}
+
+</div>
+
+<style>
+    .empty-state {
+        text-align: center;
+        padding: 6rem 2rem;
+        background: var(--surface-color);
+        border: 1px dashed var(--border-subtle);
+        border-radius: 12px;
+        margin-top: 2rem;
+    }
+
+    .btn-outline {
+        padding: 0.6rem 1rem;
+        background: transparent;
+        color: var(--text-color);
+        border: 1px solid var(--border-subtle);
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+        font-size: 0.95rem;
+        text-decoration: none;
+        transition: all 0.2s;
+        display: inline-block;
+    }
+
+    .btn-outline:hover {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: var(--text-muted);
+    }
+
+    .btn-primary {
+        padding: 0.8rem 1.5rem;
+        background: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.2s;
+        display: inline-block;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(167, 139, 250, 0.25);
+    }
+
+    .btn-primary:hover {
+        background: var(--primary-hover);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(167, 139, 250, 0.35);
+    }
+
+    .export-card {
+        background: var(--surface-color);
+        padding: 3rem 2rem;
+        border-radius: 12px;
+        border: 1px solid var(--border-subtle);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.05);
+        margin: 0 auto;
+        max-width: 800px;
+        width: 100%;
+    }
+
+    .export-icon-container {
+        width: 96px;
+        height: 96px;
+        border-radius: 50%;
+        background: rgba(167, 139, 250, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1.5rem;
+        color: var(--primary);
+    }
+
+    .export-description {
+        color: var(--text-muted);
+        margin-bottom: 2rem;
+        max-width: 600px;
+        line-height: 1.6;
+        font-size: 1.05rem;
+    }
+
+    .repo-details-box {
+        background: var(--bg-color);
+        border: 1px solid var(--border-subtle);
+        border-radius: 8px;
+        padding: 1.5rem;
+        width: 100%;
+        max-width: 500px;
+        margin-bottom: 2.5rem;
+        text-align: left;
+    }
+
+    .detail-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.75rem 0;
+        border-bottom: 1px dashed var(--border-subtle);
+    }
+
+    .detail-row:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+    .detail-row:first-child {
+        padding-top: 0;
+    }
+
+    .detail-label {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    .detail-value {
+        color: var(--text-color);
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+
+    .spinner {
+        display: inline-block;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top: 2px solid white;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+</style>
+
+<script>
+    if (document.getElementById('exportForm')) {
+        document.getElementById('exportForm').addEventListener('submit', function (e) {
+            const btn = document.getElementById('btnExport');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner" style="width: 20px; height: 20px; margin-right: 0.5rem;"></span> Preparing Archive...';
+            btn.style.pointerEvents = 'none';
+            btn.style.opacity = '0.8';
+
+            // Revert UI after a short delay since download triggers
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.style.pointerEvents = 'auto';
+                btn.style.opacity = '1';
+            }, 3000);
+        });
+    }
+</script>
+{% endblock %}
