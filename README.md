@@ -2,30 +2,6 @@
 
 AiCodeRev is a comprehensive, AI-powered code review and repository management platform. It allows developers to seamlessly upload code, automatically run deep static analysis for code smells, generate AI-driven refactoring suggestions, and track changes using a fully integrated Git version control history.
 
----
-
-## 📸 Screenshots
-
-*(Note: Replace the placeholder image files in the `screenshots/` directory with your actual screenshots)*
-
-### Dashboard
-The main command center displaying repository health, critical smells, and recent activities.
-![Dashboard Screenshot](screenshots/dashboard.png)
-
-### Code Analysis Report
-A detailed breakdown of identified code smells and architectural anti-patterns detected within your repository.
-![Analysis Report Screenshot](screenshots/analysis_report.png)
-
-### AI Refactoring Suggestions
-View side-by-side comparisons of the original code and the AI-generated refactoring suggestions.
-![Refactoring Screenshot](screenshots/refactoring.png)
-
-### Commit History & Diff Viewer
-A sleek Git interface to navigate your repository's timeline, view commit messages, and inspect file-by-file code diffs seamlessly.
-![Commit History Screenshot](screenshots/commit_history.png)
-
----
-
 ## ✨ Features
 
 - **Multi-LLM AI Integration:** Uses Gemini, OpenAI, or Anthropic models for intelligent code refactoring and smell detection.
