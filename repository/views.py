@@ -187,6 +187,9 @@ class UploadView(LoginRequiredMixin, View):
                 else:
                     tree_preview.append(safe_name)
             
+            if not tree_preview:
+                return JsonResponse({'error': 'No supported files were uploaded.'}, status=400)
+                
             try:
                 repo_git = git.Repo(repo_path)
                 repo_git.git.add(A=True) 

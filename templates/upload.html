@@ -314,9 +314,15 @@
             btnUpload.disabled = false;
             btnUpload.style.opacity = '1';
 
+            let responseData = null;
+            try {
+                responseData = JSON.parse(xhr.responseText);
+            } catch (e) {
+                // Ignore parse errors
+            }
+
             if (xhr.status >= 200 && xhr.status < 300) {
-                const data = JSON.parse(xhr.responseText);
-                if (data.success) {
+                if (responseData && responseData.success) {
                     showBanner('Upload successful! Repository updated.', 'success');
                     pendingFiles = [];
                     fileInput.value = '';
@@ -328,7 +334,7 @@
                     const treePreview = document.getElementById('fileTreePreview');
                     const treeList = document.getElementById('treeList');
                     treeList.innerHTML = '';
-                    data.tree.forEach(f => {
+                    responseData.tree.forEach(f => {
                         const li = document.createElement('li');
                         li.textContent = f;
                         treeList.appendChild(li);
@@ -349,10 +355,10 @@
                     
                     treePreview.style.display = 'block';
                 } else {
-                    showBanner(data.error || 'Upload failed.', 'error');
+                    showBanner((responseData && responseData.error) || 'Upload failed.', 'error');
                 }
             } else {
-                showBanner('Server error occurred during upload.', 'error');
+                showBanner((responseData && responseData.error) || 'Server error occurred during upload.', 'error');
             }
         });
 
