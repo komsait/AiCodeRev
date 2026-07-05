@@ -18,7 +18,7 @@ db.sqlite3-journal
 # Workspace (user repositories and files)
 workspace/
 media/
-static/
+staticfiles/
 
 # IDEs
 .vscode/
