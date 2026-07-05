@@ -92,12 +92,12 @@ WSGI_APPLICATION = 'core.wsgi.application'
 
 # Database
 # Use dj_database_url to parse the DATABASE_URL environment variable.
-# Fallback to local PostgreSQL if not specified.
+# Fallback to local PostgreSQL or Railway's PG variables if not specified.
 DATABASES = {
     'default': dj_database_url.config(
         default=os.environ.get(
             'DATABASE_URL',
-            f"postgres://{os.environ.get('DB_USER', 'postgres')}:{os.environ.get('DB_PASSWORD', 'password')}@{os.environ.get('DB_HOST', 'localhost')}:{os.environ.get('DB_PORT', '5432')}/{os.environ.get('DB_NAME', 'code_smells_db')}"
+            f"postgres://{os.environ.get('PGUSER', os.environ.get('DB_USER', 'postgres'))}:{os.environ.get('PGPASSWORD', os.environ.get('DB_PASSWORD', 'password'))}@{os.environ.get('PGHOST', os.environ.get('DB_HOST', 'localhost'))}:{os.environ.get('PGPORT', os.environ.get('DB_PORT', '5432'))}/{os.environ.get('PGDATABASE', os.environ.get('DB_NAME', 'code_smells_db'))}"
         ),
         conn_max_age=600,
         conn_health_checks=True,
