@@ -2,7 +2,7 @@
 {% block title %}Refactoring - AiCodeRev{% endblock %}
 
 {% block content %}
-<div class="page-container" style="max-width: 1400px; margin: 0 auto;">
+<div class="page-container" style="max-width: 1400px; margin: 0 auto; padding-bottom: 100px;">
 
     {% if status == 'no_smell' %}
     <div style="margin-bottom: 2rem;">
@@ -132,20 +132,6 @@
 
     <!-- Actions Bar (Sticky) -->
     <div class="actions-bar">
-        <div style="display: flex; gap: 1rem; align-items: center; flex: 1; max-width: 500px;">
-            <div class="input-wrapper" style="flex: 1; position: relative;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                    style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted);">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                    <polyline points="17 8 12 3 7 8"></polyline>
-                    <line x1="12" y1="3" x2="12" y2="15"></line>
-                </svg>
-                <input type="text" placeholder="Tune prompt (e.g. 'Use list comprehension')..." class="prompt-input">
-            </div>
-            <button class="btn-outline glow-on-hover">Tune AI</button>
-        </div>
-
         <div style="display: flex; gap: 1rem;">
             <form method="post" action="{% url 'refactoring' %}" style="margin: 0;">
                 {% csrf_token %}
@@ -376,18 +362,20 @@
     }
 
     .actions-bar {
-        position: sticky;
-        bottom: 2rem;
+        position: fixed;
+        bottom: 0;
+        left: 72px; /* Matches .icon-rail width */
+        right: 0;
         background: var(--surface-color);
-        padding: 1.25rem 1.5rem;
-        border-radius: 12px;
-        border: 1px solid var(--border-subtle);
-        box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
+        padding: 1.25rem 2rem;
+        border-top: 1px solid var(--border-subtle);
+        box-shadow: 0 -10px 40px -10px rgba(0, 0, 0, 0.5);
         display: flex;
-        justify-content: space-between;
+        justify-content: flex-end;
         align-items: center;
-        z-index: 10;
+        z-index: 100;
         backdrop-filter: blur(10px);
+        margin: 0;
     }
 
     .prompt-input {
