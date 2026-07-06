@@ -29,4 +29,4 @@ RUN python manage.py collectstatic --noinput
 EXPOSE 8000
 
 # Run migrations (with retry) and start gunicorn
-CMD ["sh", "-c", "while ! python manage.py migrate; do echo 'Waiting for database...'; sleep 2; done && gunicorn --bind 0.0.0.0:8000 core.wsgi:application"]
+CMD ["sh", "-c", "while ! python manage.py migrate; do echo 'Waiting for database...'; sleep 2; done && python create_admin.py && gunicorn --bind 0.0.0.0:8000 core.wsgi:application"]
