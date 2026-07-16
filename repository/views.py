@@ -216,6 +216,16 @@ class UploadView(LoginRequiredMixin, View):
             try:
                 repo_git = git.Repo(repo_path)
                 repo_git.git.add(A=True) 
+                
+                # Check if there are any commits yet (is this the first upload?)
+                try:
+                    repo_git.head.commit
+                    # If we get here, it's not the initial commit, but we still commit the new files
+                    repo_git.index.commit("Uploaded additional files")
+                except ValueError:
+                    # No commits yet (ValueError: Reference at 'refs/heads/master' does not exist)
+                    repo_git.index.commit("Initial repository upload")
+                    
             except git.exc.InvalidGitRepositoryError as e:
                 for item in tree_preview:
                     fpath = os.path.join(repo_path, item)
