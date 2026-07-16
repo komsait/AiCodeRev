@@ -785,10 +785,15 @@
             editedPane.style.display = 'flex';
             diffViewer.classList.add('three-pane');
 
+            // Fetch live DOM elements because syncAllPanes replaces them with clones
+            const liveOriginalContainer = document.getElementById('original-code-container');
+            const liveSuggestedContainer = document.getElementById('suggested-code-container');
+            const liveEditedContainer = document.getElementById('edited-code-container');
+
             // Re-render all panes
-            renderDiffLines(originalContainer, leftLines);
-            renderDiffLines(suggestedContainer, rightLines);
-            renderDiffLines(editedContainer, editedRightLines);
+            renderDiffLines(liveOriginalContainer, leftLines);
+            renderDiffLines(liveSuggestedContainer, rightLines);
+            renderDiffLines(liveEditedContainer, editedRightLines);
 
             // Re-sync scroll listeners
             syncAllPanes();
@@ -1021,9 +1026,15 @@
                             input.value = data.suggestion_id;
                         });
                         // Re-render side-by-side diff
-                        renderDiffLines(originalContainer, data.left_lines);
-                        renderDiffLines(suggestedContainer, data.right_lines);
+                        const liveOriginalContainer = document.getElementById('original-code-container');
+                        const liveSuggestedContainer = document.getElementById('suggested-code-container');
+                        
+                        renderDiffLines(liveOriginalContainer, data.left_lines);
+                        renderDiffLines(liveSuggestedContainer, data.right_lines);
                         promptInput.value = '';
+                        
+                        // Re-sync scroll listeners after updating DOM
+                        syncAllPanes();
                     } else {
                         alert('Error: ' + (data.error || 'Failed to tune AI suggestion.'));
                     }

@@ -45,18 +45,18 @@ class AIService:
     @staticmethod
     def _chunk_code(content, language_hint=""):
         """
-        Splits *content* into chunks of ~CHUNK_TARGET_LINES lines.
+        Splits the given file content into manageable chunks (target ~120 lines).
+        
+        This is a structural chunker: it looks for code boundaries (like 'def', 'class', 
+        or blank lines) so that it doesn't arbitrarily cut a function in half, which 
+        would ruin the context for the AI model during analysis.
 
-        Strategy:
-        1. Walk through lines looking for structural boundaries
-           (class/function/method definitions, blank-line separators).
-        2. When the current chunk reaches CHUNK_TARGET_LINES, look for the
-           nearest boundary within ±20 lines to break at.
-        3. Never exceed CHUNK_MAX_LINES.
-        4. Merge a tiny trailing fragment (< CHUNK_MIN_LINES) into the
-           previous chunk.
+        Args:
+            content (str): The raw source code of the file.
+            language_hint (str): Optional language hint (e.g., 'Python').
 
-        Returns a list of (start_line_1indexed, chunk_text) tuples.
+        Returns:
+            list: A list of tuples containing (start_line_number, chunk_text).
         """
         lines = content.split('\n')
         total = len(lines)
@@ -120,9 +120,18 @@ class AIService:
     @staticmethod
     def extract_and_send(repo_path, files_to_analyze=None):
         """
-        Traverses repo, extracts code, chunks large files, and requests
-        Gemini analysis per chunk (UC004).  Results are aggregated with
-        correct per-file line offsets.
+        The main pipeline for scanning a repository and detecting code smells.
+        
+        It traverses the downloaded repository in the 'workspace' directory, finds supported
+        code files (.py, .java, .js, etc.), reads their content, and sends them to the
+        configured AI Provider to extract actionable code smells.
+
+        Args:
+            repo_path (str): The absolute path to the repository on disk.
+            files_to_analyze (list, optional): A specific list of files to analyze. Defaults to all.
+
+        Returns:
+            dict: A dictionary containing the list of detected 'smells'.
         """
         supported_exts = ['.py', '.java', '.js', '.php', '.rb', '.go', '.c', '.cs']
         all_smells = []
@@ -249,8 +258,15 @@ class AIService:
     @staticmethod
     def classify_and_store(raw_response, repository):
         """
-        Parses AI response, classifies smells and persists them to
-        Database (UC005).
+        Parses the raw JSON response from the AI and persists the detected code smells 
+        into the relational database.
+
+        Args:
+            raw_response (dict): The dictionary returned by `extract_and_send` containing 'smells'.
+            repository (Repository): The Django Repository model instance being analyzed.
+
+        Returns:
+            AnalysisReport: The newly created analysis report linking to all the smells.
         """
         from .models import AnalysisReport, CodeSmell
 
@@ -287,7 +303,15 @@ class AIService:
     @staticmethod
     def suggest_refactoring(code_smell, original_code="", instructions=None):
         """
-        Requests refactoring generation from Gemini API (UC007).
+        Requests an automated code fix (refactoring) from the AI provider based on a specific code smell.
+
+        Args:
+            code_smell (CodeSmell): The smell instance detected by the analyzer.
+            original_code (str): The snippet of original code to be refactored.
+            instructions (str, optional): Additional user instructions for tuning the AI's prompt.
+
+        Returns:
+            str: The raw, refactored code block returned by the AI.
         """
         try:
             from .providers.factory import AIProviderFactory
@@ -304,8 +328,13 @@ class AIService:
     @staticmethod
     def generate_commit_message(diff_summary):
         """
-        Generates Git commit messages using Gemini API based on
-        git diff (UC008).
+        Generates a descriptive Git commit message automatically based on the applied code changes.
+
+        Args:
+            diff_summary (str): The output of `git diff` summarizing what was changed.
+
+        Returns:
+            str: A clean, concise commit message suitable for git history.
         """
         if not diff_summary:
             return "Auto-commit: saved changes"

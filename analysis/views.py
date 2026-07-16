@@ -9,7 +9,21 @@ from django.conf import settings
 import os
 
 class AnalysisReportView(LoginRequiredMixin, View):
+    """
+    Handles the display and generation of Code Smell analysis reports.
+    Requires the user to be logged in.
+    """
+
     def get(self, request):
+        """
+        Renders the Analysis Dashboard.
+        If a repository ID is provided, it fetches the most recent analysis report
+        for that repository, extracts the code smells, and dynamically loads code
+        snippets from the disk to display in the UI.
+        
+        Args:
+            request: The HTTP GET request.
+        """
         repo_id = request.GET.get('repo')
         
         if not repo_id:
@@ -62,6 +76,17 @@ class AnalysisReportView(LoginRequiredMixin, View):
         return render(request, 'analysis_report.html', context)
         
     def post(self, request):
+        """
+        Triggers a new AI analysis session for a given repository.
+        This reads the code from disk, sends it to the configured AI provider,
+        and saves the resulting code smells to the database.
+
+        Args:
+            request: The HTTP POST request containing 'repo_id'.
+            
+        Returns:
+            JsonResponse indicating success or failure.
+        """
         repo_id = request.POST.get('repo_id')
         if not repo_id:
             return JsonResponse({'error': 'Repo not found'}, status=400)

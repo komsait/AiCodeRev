@@ -12,7 +12,14 @@ from django.contrib.auth.decorators import login_required
 from .models import Repository
 
 class RepositoriesView(LoginRequiredMixin, View):
+    """
+    Manages the creation and listing of repositories.
+    """
+    
     def get(self, request):
+        """
+        Renders the list of repositories owned by the logged-in user.
+        """
         repos = Repository.objects.filter(user=request.user)
         return render(request, 'repositories.html', {'repos': repos})
 
@@ -45,7 +52,16 @@ class RepositoriesView(LoginRequiredMixin, View):
         return JsonResponse({'success': True, 'redirect': '/upload/' if upload_now else '/repositories/'})
 
 class RepositoryViewPage(LoginRequiredMixin, View):
+    """
+    Handles viewing the contents of a specific repository.
+    Provides a file tree and allows viewing the raw content of individual files.
+    """
+    
     def get(self, request):
+        """
+        If 'file_path' is provided in the query string, returns the raw text content of that file.
+        Otherwise, builds and returns a JSON-friendly nested tree structure of the repository directory.
+        """
         repo_id = request.GET.get('id')
         file_path = request.GET.get('file_path')
         
@@ -116,7 +132,14 @@ def get_dir_size(path):
     return total
 
 class UploadView(LoginRequiredMixin, View):
+    """
+    Handles uploading local files or ZIP archives into a repository.
+    """
+    
     def get(self, request):
+        """
+        Renders the file upload interface.
+        """
         repos = Repository.objects.filter(user=request.user)
         selected_repo_id = request.GET.get('repo')
         return render(request, 'upload.html', {'repos': repos, 'selected_repo_id': selected_repo_id})
