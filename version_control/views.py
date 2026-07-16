@@ -88,9 +88,12 @@ class HistoryView(LoginRequiredMixin, View):
             
         selected_hash = request.GET.get('hash')
         diff_files = []
+        is_initial_commit = False
         if selected_hash:
             try:
-                diff_files = GitService.get_commit_diff_files(repo_path, selected_hash)
+                diff_result = GitService.get_commit_diff_files(repo_path, selected_hash)
+                diff_files = diff_result['files']
+                is_initial_commit = diff_result['is_initial_commit']
                 for file in diff_files:
                     file['old_lines'] = file['old_content'].splitlines() if file['old_content'] else []
                     file['new_lines'] = file['new_content'].splitlines() if file['new_content'] else []
@@ -104,6 +107,7 @@ class HistoryView(LoginRequiredMixin, View):
             'repos': repos,
             'commits': commits,
             'selected_hash': selected_hash,
-            'diff_files': diff_files
+            'diff_files': diff_files,
+            'is_initial_commit': is_initial_commit,
         }
         return render(request, 'history.html', context)

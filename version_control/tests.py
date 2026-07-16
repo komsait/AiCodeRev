@@ -153,6 +153,75 @@ class HistoryViewTests(TestCase):
         })
         self.assertEqual(response.status_code, 200)
         self.assertIn('diff_files', response.context)
+        self.assertIn('is_initial_commit', response.context)
         diff_files = response.context['diff_files']
         self.assertTrue(len(diff_files) > 0)
         self.assertEqual(diff_files[0]['filename'], 'hello.txt')
+
+    def test_initial_commit_diff_direction(self):
+        """
+        Verify that the initial commit (no parent) correctly shows:
+        - All files with status 'new'
+        - Empty old content (old side)
+        - Full file content on the new side
+        - is_initial_commit = True
+        """
+        # Create multiple files and make an initial commit
+        src_dir = os.path.join(self.repo_path, 'src')
+        os.makedirs(src_dir, exist_ok=True)
+
+        with open(os.path.join(self.repo_path, 'README.md'), 'w') as f:
+            f.write("# Test Project\nThis is a test.")
+
+        with open(os.path.join(src_dir, 'example.js'), 'w') as f:
+            f.write("function hello() {\n  console.log('hello');\n}\n")
+
+        commit_hash = GitService.commit_all(self.repo_path, "Initial commit with multiple files")
+
+        # Use the service directly
+        result = GitService.get_commit_diff_files(self.repo_path, commit_hash)
+        self.assertTrue(result['is_initial_commit'])
+
+        files = result['files']
+        self.assertEqual(len(files), 2)
+
+        filenames = [f['filename'] for f in files]
+        self.assertIn('README.md', filenames)
+        self.assertIn('src/example.js', filenames)
+
+        for f in files:
+            # All files in initial commit should be 'new' (Added)
+            self.assertEqual(f['status'], 'new')
+            # Old content must be empty (no previous version)
+            self.assertEqual(f['old_content'], "")
+            # New content must contain the committed code
+            self.assertTrue(len(f['new_content']) > 0)
+            # is_initial_commit flag on each file
+            self.assertTrue(f['is_initial_commit'])
+
+    def test_second_commit_diff_still_works(self):
+        """
+        Verify that a normal (non-initial) commit still produces
+        correct diffs comparing against its parent.
+        """
+        # First commit
+        test_file = os.path.join(self.repo_path, 'code.py')
+        with open(test_file, 'w') as f:
+            f.write("x = 1\n")
+        GitService.commit_all(self.repo_path, "First commit")
+
+        # Second commit with modification
+        with open(test_file, 'w') as f:
+            f.write("x = 2\n")
+        second_hash = GitService.commit_all(self.repo_path, "Second commit")
+
+        result = GitService.get_commit_diff_files(self.repo_path, second_hash)
+        self.assertFalse(result['is_initial_commit'])
+
+        files = result['files']
+        self.assertEqual(len(files), 1)
+        self.assertEqual(files[0]['filename'], 'code.py')
+        self.assertEqual(files[0]['status'], 'modified')
+        self.assertIn("x = 1", files[0]['old_content'])
+        self.assertIn("x = 2", files[0]['new_content'])
+

@@ -78,6 +78,9 @@
             <div class="pane-header dark" style="display: flex; justify-content: space-between; align-items: center; background: var(--surface-color); border-bottom: 1px solid var(--border-subtle); flex-shrink: 0;">
                 <div>
                     Reviewing Diff for <span style="font-family: monospace; color: var(--primary);">{{ selected_hash|slice:":7" }}</span>
+                    {% if is_initial_commit %}
+                    <span style="margin-left: 0.75rem; padding: 0.2rem 0.6rem; background: rgba(16, 185, 129, 0.15); color: var(--success); border-radius: 4px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Initial Commit</span>
+                    {% endif %}
                 </div>
             </div>
             
@@ -98,7 +101,7 @@
                         <div class="file-header" style="background: rgba(255, 255, 255, 0.02); padding: 0.75rem 1.25rem; border-bottom: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
                             <span style="font-family: monospace; font-weight: 600; color: var(--text-color); font-size: 0.9rem;">{{ file.filename }}</span>
                             <span class="badge {% if file.status == 'new' %}success{% elif file.status == 'deleted' %}danger{% else %}info{% endif %}" style="font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 4px;">
-                                {{ file.status|upper }}
+                                {% if file.status == 'new' %}ADDED{% else %}{{ file.status|upper }}{% endif %}
                             </span>
                         </div>
                         
@@ -110,7 +113,17 @@
                                 </div>
                                 <div class="diff-code-container history-code-container" style="flex: 1; overflow: auto; background: var(--bg-color); height: 100%;">
                                     {% if file.status == 'new' %}
-                                        <div style="padding: 2rem; text-align: center; color: var(--text-muted); font-style: italic;">New file</div>
+                                        <div style="padding: 2rem 1.5rem; color: var(--text-muted);">
+                                            <div style="text-align: center; margin-bottom: 1rem;">
+                                                <span style="font-size: 2rem; opacity: 0.5;">📄</span>
+                                            </div>
+                                            {% if file.is_initial_commit %}
+                                            <p style="text-align: center; font-style: italic; margin: 0 0 0.5rem 0;">This file was introduced in the initial commit.</p>
+                                            <p style="text-align: center; font-size: 0.85rem; opacity: 0.7; margin: 0;">No previous version exists.</p>
+                                            {% else %}
+                                            <p style="text-align: center; font-style: italic; margin: 0;">New file — no previous version.</p>
+                                            {% endif %}
+                                        </div>
                                     {% else %}
                                         {% for line in file.old_lines %}
                                         <div class="diff-line line-normal">

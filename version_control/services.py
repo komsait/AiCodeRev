@@ -1,8 +1,23 @@
 import git
 
 class GitService:
+    """
+    A service class that wraps the GitPython library to execute Git commands
+    on the downloaded repositories in the workspace directory.
+    """
+    
     @staticmethod
     def get_status(repo_path):
+        """
+        Retrieves the current Git status of the repository, including changed, 
+        untracked, and staged files.
+
+        Args:
+            repo_path (str): The absolute path to the local repository.
+
+        Returns:
+            dict: A dictionary containing lists of 'changed', 'untracked', and 'staged' files.
+        """
         repo = git.Repo(repo_path)
         
         changed_files = [item.a_path for item in repo.index.diff(None)]
@@ -19,12 +34,36 @@ class GitService:
         
     @staticmethod
     def get_diff_summary(repo_path):
+        """
+        Generates a summary of all unstaged changes in the working directory.
+        Used primarily by the AI to generate automated commit messages.
+
+        Args:
+            repo_path (str): The absolute path to the local repository.
+
+        Returns:
+            str: The raw string output of `git diff`.
+        """
         repo = git.Repo(repo_path)
         diff = repo.git.diff('HEAD') if repo.heads else repo.git.diff()
         return diff
         
     @staticmethod
     def commit_all(repo_path, message):
+        """
+        Stages all changes in the working directory (`git add -A`) and commits them
+        with the provided message.
+
+        Args:
+            repo_path (str): The absolute path to the local repository.
+            message (str): The commit message.
+
+        Returns:
+            str: The SHA hash of the new commit.
+            
+        Raises:
+            Exception: If there is nothing to commit.
+        """
         repo = git.Repo(repo_path)
         repo.git.add(A=True)
         if not repo.is_dirty(index=True, untracked_files=True):
@@ -34,6 +73,16 @@ class GitService:
 
     @staticmethod
     def get_log(repo_path, max_count=50):
+        """
+        Retrieves the commit history (git log) for the active branch.
+
+        Args:
+            repo_path (str): The absolute path to the local repository.
+            max_count (int): The maximum number of commits to return. Defaults to 50.
+
+        Returns:
+            list: A list of dictionaries containing commit metadata (hash, message, author, date).
+        """
         repo = git.Repo(repo_path)
         if not repo.heads:
             return []
@@ -56,14 +105,35 @@ class GitService:
         
     @staticmethod
     def get_commit_diff_files(repo_path, commit_hash):
+        """
+        Extracts the list of files changed in a specific commit, along with the 
+        old and new content of each file to render a diff view.
+
+        For initial commits (no parent), compares against the empty Git tree so
+        that the old side is empty and the new side shows the full committed content.
+
+        Args:
+            repo_path (str): The absolute path to the local repository.
+            commit_hash (str): The SHA hash of the target commit.
+
+        Returns:
+            dict: A dictionary with 'files' (list of change dicts) and
+                  'is_initial_commit' (bool).
+        """
         repo = git.Repo(repo_path)
         commit = repo.commit(commit_hash)
+        is_initial_commit = len(commit.parents) == 0
 
         if commit.parents:
             parent = commit.parents[0]
             diffs = parent.diff(commit, create_patch=False)
         else:
-            diffs = commit.diff(git.NULL_TREE, create_patch=False)
+            # Initial commit: compare empty tree → commit tree.
+            # Using the well-known empty tree SHA so the diff direction is
+            # correct (old=empty, new=committed files).
+            EMPTY_TREE_SHA = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
+            empty_tree = repo.tree(EMPTY_TREE_SHA)
+            diffs = empty_tree.diff(commit.tree, create_patch=False)
 
         files = []
 
@@ -105,6 +175,7 @@ class GitService:
                 "status": status,
                 "old_content": old_content,
                 "new_content": new_content,
+                "is_initial_commit": is_initial_commit,
             })
 
-        return files
+        return {"files": files, "is_initial_commit": is_initial_commit}
